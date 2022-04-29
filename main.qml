@@ -1,14 +1,18 @@
 import QtQuick 2.14
 import QtQuick.Controls 2.14
+import QtQuick.Controls.Styles 1.4
 import QtQuick.Window 2.14
 import QtQuick.Layouts 1.2
 import QtMultimedia 5.12
 import QtQuick.Dialogs 1.1
+import QtGraphicalEffects 1.0
+import QtQuick.Extras 1.4
 import "components"
 
 ApplicationWindow {
     width: screen.desktopAvailableWidth
     height: screen.desktopAvailableHeight
+    // visibility: Window.FullScreen
     flags: Qt.WindowMaximized | Qt.Window
     visible: true
     title: qsTr("Klima Gövde-Kapak Kalite Sistemi")
@@ -99,11 +103,17 @@ ApplicationWindow {
                     }
 
                     // FACTORY LOGO
-                    Rectangle{
+                    LinearGradient{
                         Layout.preferredWidth: parent.width / 3
                         Layout.alignment: Qt.AlignRight
                         height:100
-                        color: "transparent"
+                        // color: "transparent"
+                        start: Qt.point(0, 0)
+                        end: Qt.point(width - 100, 0)
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: "#326195" }
+                            GradientStop { position: 1.0; color: "#c8cacc" }
+                        }
                         
                         Image {
                             anchors.right: parent.right

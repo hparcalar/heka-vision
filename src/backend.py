@@ -6,12 +6,19 @@ import json
 from time import sleep
 from PySide2.QtCore import QObject, Slot, Signal
 from threading import Thread
+from src.data_models import *
 
 from numpy import true_divide
 
 class BackendManager(QObject):
     def __init__(self):
         QObject.__init__(self)
+        self.initDb()
+
+
+    def initDb(self):
+        create_tables()
+
 
     #SIGNALS
     showSettings = Signal()

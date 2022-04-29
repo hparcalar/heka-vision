@@ -38,7 +38,7 @@ Item{
     }
 
     function openSettings(){
-        backend.requestShowSettings();
+        popupAuth.open();
     }
 
     function requestSections(){
@@ -80,6 +80,181 @@ Item{
 
         function onGetState(stateData){
             drawState(JSON.parse(stateData));
+        }
+    }
+
+    // POPUPS
+    Popup {
+        id: popupAuth
+        modal: true
+        dim: true
+        Overlay.modal: Rectangle {
+            color: "#aacfdbe7"
+        }
+
+        anchors.centerIn: parent
+        width: parent.width / 3
+        height: 210
+
+        enter: Transition {
+            NumberAnimation { properties: "opacity"; from: 0; to: 1 }
+        }
+
+        exit: Transition {
+            NumberAnimation { properties: "opacity"; from: 1; to: 0 }
+        }
+
+        onAboutToShow: function(){
+            lblLoginError.visible = false;
+            txtLoginPassword.text = '';
+        }
+
+        onOpened: function(){
+            txtLoginPassword.forceActiveFocus();
+        }
+
+        ColumnLayout{
+            anchors.fill: parent
+
+            Label{
+                Layout.fillWidth: true
+                Layout.preferredHeight: 40
+                Layout.alignment: Qt.AlignTop
+                horizontalAlignment: Text.AlignHCenter
+                text:'Yönetici Girişi'
+                font.bold: true
+                font.pixelSize: 24
+            }
+
+            Rectangle{
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                color: "transparent"
+
+                ColumnLayout{
+                    anchors.fill: parent
+
+                    TextField {
+                        id: txtLoginPassword
+                        Layout.alignment: Qt.AlignTop
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 50
+                        echoMode: TextInput.Password
+                        
+                        font.pixelSize: 24
+                        placeholderText: qsTr("Parolayı girin")
+                    }
+
+                    Label{
+                        id: lblLoginError
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 40
+                        Layout.alignment: Qt.AlignTop
+                        topPadding:5
+                        visible: false
+                        color: "red"
+                        background: Rectangle{
+                            anchors.fill: parent
+                            anchors.bottomMargin: 10
+                            color:"#22fa0202"
+                            border.color: "red"
+                            border.width: 1
+                            radius: 5
+                        }
+                        horizontalAlignment: Text.AlignHCenter
+                        text:'Hatalı parola girdiniz.'
+                        font.bold: true
+                        font.pixelSize: 18
+                    }
+                }
+            }
+
+            Rectangle{
+                Layout.fillWidth: true
+                Layout.preferredHeight: 50
+                Layout.alignment: Qt.AlignBottom
+                color: "transparent"
+
+                RowLayout{
+                    anchors.fill: parent
+
+                    Button{
+                        id: btnLoginCancel
+                        onClicked: function(){
+                            popupAuth.close();
+                        }
+                        text: "VAZGEÇ"
+                        Layout.preferredWidth: parent.width * 0.5
+                        Layout.fillHeight: true
+                        font.pixelSize: 24
+                        font.bold: true
+                        padding: 5
+                        leftPadding: 50
+                        palette.buttonText: "#333"
+                        background: Rectangle {
+                            border.width: btnLoginCancel.activeFocus ? 2 : 1
+                            border.color: "#333"
+                            radius: 4
+                            gradient: Gradient {
+                                GradientStop { position: 0 ; color: btnLoginCancel.pressed ? "#AAA" : "#dedede" }
+                                GradientStop { position: 1 ; color: btnLoginCancel.pressed ? "#dedede" : "#AAA" }
+                            }
+                        }
+
+                        Image {
+                            anchors.top: btnLoginCancel.top
+                            anchors.left: btnLoginCancel.left
+                            anchors.topMargin: 10
+                            anchors.leftMargin: 10
+                            sourceSize.width: 50
+                            sourceSize.height: 30
+                            fillMode: Image.Stretch
+                            source: "../assets/back.png"
+                        }
+                    }
+
+                    Button{
+                        id: btnLoginApply
+                        text: "GİRİŞ"
+                        onClicked: function(){
+                            if (txtLoginPassword.text == '8910'){
+                                popupAuth.close();
+                                backend.requestShowSettings();
+                            }
+                            else{
+                                lblLoginError.visible = true;
+                            }
+                        }
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        font.pixelSize: 24
+                        font.bold: true
+                        padding: 5
+                        leftPadding: 50
+                        palette.buttonText: "#333"
+                        background: Rectangle {
+                            border.width: btnLoginApply.activeFocus ? 2 : 1
+                            border.color: "#326195"
+                            radius: 4
+                            gradient: Gradient {
+                                GradientStop { position: 0 ; color: btnLoginApply.pressed ? "#326195" : "#dedede" }
+                                GradientStop { position: 1 ; color: btnLoginApply.pressed ? "#dedede" : "#326195" }
+                            }
+                        }
+
+                        Image {
+                            anchors.top: btnLoginApply.top
+                            anchors.left: btnLoginApply.left
+                            anchors.topMargin: 10
+                            anchors.leftMargin: 10
+                            sourceSize.width: 50
+                            sourceSize.height: 30
+                            fillMode: Image.Stretch
+                            source: "../assets/login.png"
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -254,6 +429,7 @@ Item{
             Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                Layout.leftMargin: 50
                 Layout.rightMargin: 5
                 color: "transparent"
 
