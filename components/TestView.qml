@@ -8,6 +8,8 @@ import QtQuick.Extras 1.4
 
 Item{
     property string sectionList
+    property int loginState: 0
+    property var activeProduct: new Object{ id: 0 };
 
     // ON LOAD EVENT
     Component.onCompleted: function(){
@@ -47,6 +49,10 @@ Item{
 
     function requestState(){
         backend.requestState();
+    }
+
+    function requestSteps(){
+
     }
 
     function drawState(stateData){
@@ -105,6 +111,7 @@ Item{
         }
 
         onAboutToShow: function(){
+            loginState = 0;
             lblLoginError.visible = false;
             txtLoginPassword.text = '';
         }
@@ -140,6 +147,18 @@ Item{
                         Layout.fillWidth: true
                         Layout.preferredHeight: 50
                         echoMode: TextInput.Password
+                        onEditingFinished: function(){
+                            if (txtLoginPassword.text == '8910'){
+                                if (loginState == 0){
+                                    loginState = 1;
+                                    popupAuth.close();
+                                    backend.requestShowSettings();
+                                }
+                            }
+                            else{
+                                lblLoginError.visible = true;
+                            }
+                        }
                         
                         font.pixelSize: 24
                         placeholderText: qsTr("Parolayı girin")

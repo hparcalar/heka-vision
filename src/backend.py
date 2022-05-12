@@ -26,6 +26,24 @@ class BackendManager(QObject):
     getSections = Signal(str)
     getState = Signal(str)
 
+    saveProductFinished = Signal(str)
+    getProductList = Signal(str)
+    getProductInfo = Signal(str)
+    deleteProductFinished = Signal(str)
+    productListNeedsRefresh = Signal()
+
+    saveEmployeeFinished = Signal(str)
+    getEmployeeList = Signal(str)
+    getEmployeeInfo = Signal(str)
+    deleteEmployeeFinished = Signal(str)
+    employeeListNeedsRefresh = Signal()
+
+    saveShiftFinished = Signal(str)
+    getShiftList = Signal(str)
+    getShiftInfo = Signal(str)
+    deleteShiftFinished = Signal(str)
+    shiftListNeedsRefresh = Signal()
+
     #SLOTS
     @Slot()
     def requestShowSettings(self):
@@ -40,7 +58,7 @@ class BackendManager(QObject):
         sampleData = [
             {
                 "Label": "1",
-                "PosX": 100,
+                "PosX": 200,
                 "PosY": 60,
             },
             {
@@ -106,4 +124,97 @@ class BackendManager(QObject):
             }
         ]
         self.getState.emit(json.dumps(sampleData))
+
+
+    # PRODUCT SLOTS
+    @Slot()
+    def requestProductList(self):
+        data = getProductList()
+        self.getProductList.emit(json.dumps(data))
+
+
+    @Slot(int)
+    def requestProductInfo(self, productId):
+        data = getProduct(productId)
+        self.getProductInfo.emit(json.dumps(data))
+
+
+    @Slot(str)
+    def saveProduct(self, model):
+        modelData = json.loads(model)
+        procResult = saveOrUpdateProduct(modelData)
+        self.saveProductFinished.emit(json.dumps(procResult))
+
+
+    @Slot(int)
+    def deleteProduct(self, productId):
+        procResult = deleteProduct(productId)
+        self.deleteProductFinished.emit(json.dumps(procResult))
+
+    
+    @Slot()
+    def broadcastProductListRefresh(self):
+        self.productListNeedsRefresh.emit()
+        
+
+    # EMPLOYEE SLOTS
+    @Slot()
+    def requestEmployeeList(self):
+        data = getEmployeeList()
+        self.getEmployeeList.emit(json.dumps(data))
+
+
+    @Slot(int)
+    def requestEmployeeInfo(self, employeeId):
+        data = getEmployee(employeeId)
+        self.getEmployeeInfo.emit(json.dumps(data))
+
+
+    @Slot(str)
+    def saveEmployee(self, model):
+        modelData = json.loads(model)
+        procResult = saveOrUpdateEmployee(modelData)
+        self.saveEmployeeFinished.emit(json.dumps(procResult))
+
+
+    @Slot(int)
+    def deleteEmployee(self, employeeId):
+        procResult = deleteEmployee(employeeId)
+        self.deleteEmployeeFinished.emit(json.dumps(procResult))
+
+    
+    @Slot()
+    def broadcastEmployeeListRefresh(self):
+        self.employeeListNeedsRefresh.emit()
+
+
+    # SHIFT SLOTS
+    @Slot()
+    def requestShiftList(self):
+        data = getShiftList()
+        self.getShiftList.emit(json.dumps(data))
+
+
+    @Slot(int)
+    def requestShiftInfo(self, shiftId):
+        data = getShift(shiftId)
+        self.getShiftInfo.emit(json.dumps(data))
+
+
+    @Slot(str)
+    def saveShift(self, model):
+        modelData = json.loads(model)
+        procResult = saveOrUpdateShift(modelData)
+        self.saveShiftFinished.emit(json.dumps(procResult))
+
+
+    @Slot(int)
+    def deleteShift(self, shiftId):
+        procResult = deleteShift(shiftId)
+        self.deleteShiftFinished.emit(json.dumps(procResult))
+
+    
+    @Slot()
+    def broadcastShiftListRefresh(self):
+        self.shiftListNeedsRefresh.emit()
 
