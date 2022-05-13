@@ -332,7 +332,8 @@ Popup {
     }
 
     function bindSectionList(){
-        rptSections.model = modelObject.sections;
+        if (modelObject.sections)
+            rptSections.model = modelObject.sections.sort((a,b) => a.orderNo - b.orderNo);
         bindGridSchema();
     }
 
@@ -341,7 +342,8 @@ Popup {
     }
 
     function bindStepsList(){
-        rptSteps.model = modelObject.steps;
+        if (modelObject.steps)
+            rptSteps.model = modelObject.steps.sort((a,b) => a.orderNo - b.orderNo);
     }
 
     // BACKEND SIGNALS & SLOTS

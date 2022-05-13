@@ -10,6 +10,7 @@ Item{
     property variant productList: []
     property variant employeeList: []
     property variant shiftList: []
+    property var settingsModel: new Object({ id:0 })
 
     // ON LOAD EVENT
     Component.onCompleted: function(){
@@ -80,6 +81,31 @@ Item{
         rptShifts.model = filteredList;
     }
 
+    function bindSettings(){
+        backend.requestSettings();
+    }
+
+    function saveSettings(){
+        if (!settingsModel)
+            settingsModel = { id:0 };
+
+        try {
+            settingsModel.cameraIp = txtStgCameraIp.text;
+            settingsModel.cameraPort = parseInt(txtStgCameraPort.text);
+            settingsModel.robotIp = txtStgRobotIp.text;
+            settingsModel.robotPort = parseInt(txtStgRobotPort.text);
+            settingsModel.isFullPrm = txtStgIsFullPrm.text;
+            settingsModel.rbFromSafetyHome = txtStgRbFromSafetyHome.text;
+            settingsModel.rbToMasterJob = txtStgRbToMasterJob.text;
+            settingsModel.rbToSafetyHome = txtStgRbToSafetyHome.text;
+            settingsModel.valfPrm = txtStgValfPrm.text;
+
+            backend.saveSettings(JSON.stringify(settingsModel));
+        } catch (error) {
+            console.log(error);
+        }
+    }
+
     // BACKEND SIGNALS & SLOTS
     Connections {
         target: backend
@@ -121,6 +147,42 @@ Item{
 
         function onShiftListNeedsRefresh(){
             bindShiftList();
+        }
+
+        function onGetSettings(data){
+            let stObj = null;
+            try {
+                stObj = JSON.parse(data);
+            } catch (error) {
+                
+            }
+
+            if (!stObj)
+                stObj = { id:0 };
+            
+            settingsModel = stObj;
+
+            try {
+                txtStgCameraIp.text = settingsModel.cameraIp;
+                txtStgCameraPort.text = (settingsModel.cameraPort ?? 0).toString();
+                txtStgRobotIp.text = settingsModel.robotIp;
+                txtStgRobotPort.text = (settingsModel.robotPort ?? 0).toString();
+                txtStgIsFullPrm.text = settingsModel.isFullPrm;
+                txtStgRbFromSafetyHome = settingsModel.rbFromSafetyHome;
+                txtStgRbToMasterJob.text = settingsModel.rbToMasterJob;
+                txtStgRbToSafetyHome.text = settingsModel.rbToSafetyHome;
+                txtStgValfPrm.text = settingsModel.valfPrm;
+            } catch (error) {
+                
+            }
+        }
+
+        function onSaveSettingsFinished(data){
+            const postResult = JSON.parse(data);
+            if (postResult.Result)
+                lblSaveSettingsResult.text = 'OK';
+            else
+                lblSaveSettingsResult.text = postResult.ErrorMessage;
         }
     }
 
@@ -248,6 +310,19 @@ Item{
                         if (tabContent.currentItem != shiftTab){
                             bindShiftList();
                             tabContent.replace(tabContent.currentItem, shiftTab);
+                        }
+                    }
+                }
+
+                TabButton{
+                    text: "Bağlantı Ayarları"
+                    icon.source: "../assets/settings.png"
+                    font.pixelSize: 18
+                    onClicked: function(){
+                        if (tabContent.currentItem != settingsTab){
+                            bindSettings();
+                            lblSaveSettingsResult.text = '';
+                            tabContent.replace(tabContent.currentItem, settingsTab);
                         }
                     }
                 }
@@ -1090,6 +1165,443 @@ Item{
                                         }
                                     }
                                 }
+                            }
+                        }
+                    }
+                }
+                Item{
+                    id: settingsTab
+                    visible: tabContent.currentItem == settingsTab
+                    Rectangle{ 
+                        anchors.fill: parent
+                        color: "transparent"
+
+                        ColumnLayout{
+                            anchors.left: parent.left
+                            anchors.top: parent.top
+                            width: parent.width / 2
+                            anchors.leftMargin: 5
+                            anchors.rightMargin: 5
+                            anchors.topMargin: 10
+
+                             // ROBOT FIELDS
+                            Rectangle{
+                                Layout.preferredHeight: 50
+                                Layout.fillWidth: true
+                                Layout.alignment: Qt.AlignTop
+                                Layout.margins: 2
+                                color: "transparent"
+
+                                RowLayout{
+                                    anchors.fill: parent
+
+                                    // ROBOT IP FIELD
+                                    Rectangle{
+                                        Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        Layout.alignment: Qt.AlignTop
+                                        color: "transparent"
+
+                                        ColumnLayout{
+                                            anchors.fill: parent
+
+                                            Label{
+                                                Layout.fillWidth: true
+                                                Layout.preferredHeight: 15
+                                                Layout.alignment: Qt.AlignTop
+                                                horizontalAlignment: Text.AlignLeft
+                                                text:'Robot Ip'
+                                                font.pixelSize: 12
+                                            }
+
+                                            TextField {
+                                                id: txtStgRobotIp
+                                                Layout.fillHeight: true
+                                                Layout.fillWidth: true
+                                                font.pixelSize: 9
+                                                padding: 10
+                                                background: Rectangle {
+                                                    radius: 5
+                                                    border.color: parent.focus ? "#326195" : "#888"
+                                                    border.width: 1
+                                                    color: parent.focus ? "#efefef" : "#ffffff"
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // ROBOT PORT FIELD
+                                    Rectangle{
+                                        Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        Layout.alignment: Qt.AlignTop
+                                        color: "transparent"
+
+                                        ColumnLayout{
+                                            anchors.fill: parent
+
+                                            Label{
+                                                Layout.fillWidth: true
+                                                Layout.preferredHeight: 15
+                                                Layout.alignment: Qt.AlignTop
+                                                horizontalAlignment: Text.AlignLeft
+                                                text:'Robot Port'
+                                                font.pixelSize: 12
+                                            }
+
+                                            TextField {
+                                                id: txtStgRobotPort
+                                                Layout.fillHeight: true
+                                                Layout.fillWidth: true
+                                                font.pixelSize: 9
+                                                padding: 10
+                                                background: Rectangle {
+                                                    radius: 5
+                                                    border.color: parent.focus ? "#326195" : "#888"
+                                                    border.width: 1
+                                                    color: parent.focus ? "#efefef" : "#ffffff"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // CAMERA FIELDS
+                            Rectangle{
+                                Layout.preferredHeight: 50
+                                Layout.fillWidth: true
+                                Layout.alignment: Qt.AlignTop
+                                Layout.margins: 2
+                                color: "transparent"
+
+                                RowLayout{
+                                    anchors.fill: parent
+
+                                    // CAMERA IP FIELD
+                                    Rectangle{
+                                        Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        Layout.alignment: Qt.AlignTop
+                                        color: "transparent"
+
+                                        ColumnLayout{
+                                            anchors.fill: parent
+
+                                            Label{
+                                                Layout.fillWidth: true
+                                                Layout.preferredHeight: 15
+                                                Layout.alignment: Qt.AlignTop
+                                                horizontalAlignment: Text.AlignLeft
+                                                text:'Kamera Ip'
+                                                font.pixelSize: 12
+                                            }
+
+                                            TextField {
+                                                id: txtStgCameraIp
+                                                Layout.fillHeight: true
+                                                Layout.fillWidth: true
+                                                font.pixelSize: 9
+                                                padding: 10
+                                                background: Rectangle {
+                                                    radius: 5
+                                                    border.color: parent.focus ? "#326195" : "#888"
+                                                    border.width: 1
+                                                    color: parent.focus ? "#efefef" : "#ffffff"
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // CAMERA PORT FIELD
+                                    Rectangle{
+                                        Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        Layout.alignment: Qt.AlignTop
+                                        color: "transparent"
+
+                                        ColumnLayout{
+                                            anchors.fill: parent
+
+                                            Label{
+                                                Layout.fillWidth: true
+                                                Layout.preferredHeight: 15
+                                                Layout.alignment: Qt.AlignTop
+                                                horizontalAlignment: Text.AlignLeft
+                                                text:'Kamera Port'
+                                                font.pixelSize: 12
+                                            }
+
+                                            TextField {
+                                                id: txtStgCameraPort
+                                                Layout.fillHeight: true
+                                                Layout.fillWidth: true
+                                                font.pixelSize: 9
+                                                padding: 10
+                                                background: Rectangle {
+                                                    radius: 5
+                                                    border.color: parent.focus ? "#326195" : "#888"
+                                                    border.width: 1
+                                                    color: parent.focus ? "#efefef" : "#ffffff"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // ROBOT HOME POS PRM
+                            Rectangle{
+                                Layout.preferredHeight: 50
+                                Layout.fillWidth: true
+                                Layout.alignment: Qt.AlignTop
+                                Layout.margins: 2
+                                color: "transparent"
+
+                                RowLayout{
+                                    anchors.fill: parent
+
+                                    // RB TO SAFETY HOME
+                                    Rectangle{
+                                        Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        Layout.alignment: Qt.AlignTop
+                                        color: "transparent"
+
+                                        ColumnLayout{
+                                            anchors.fill: parent
+
+                                            Label{
+                                                Layout.fillWidth: true
+                                                Layout.preferredHeight: 15
+                                                Layout.alignment: Qt.AlignTop
+                                                horizontalAlignment: Text.AlignLeft
+                                                text:'Home Position Git'
+                                                font.pixelSize: 12
+                                            }
+
+                                            TextField {
+                                                id: txtStgRbToSafetyHome
+                                                Layout.fillHeight: true
+                                                Layout.fillWidth: true
+                                                font.pixelSize: 9
+                                                padding: 10
+                                                background: Rectangle {
+                                                    radius: 5
+                                                    border.color: parent.focus ? "#326195" : "#888"
+                                                    border.width: 1
+                                                    color: parent.focus ? "#efefef" : "#ffffff"
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // RB FROM SAFETY HOME
+                                    Rectangle{
+                                        Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        Layout.alignment: Qt.AlignTop
+                                        color: "transparent"
+
+                                        ColumnLayout{
+                                            anchors.fill: parent
+
+                                            Label{
+                                                Layout.fillWidth: true
+                                                Layout.preferredHeight: 15
+                                                Layout.alignment: Qt.AlignTop
+                                                horizontalAlignment: Text.AlignLeft
+                                                text:'Safety Home Varış Sinyali'
+                                                font.pixelSize: 12
+                                            }
+
+                                            TextField {
+                                                id: txtStgRbFromSafetyHome
+                                                Layout.fillHeight: true
+                                                Layout.fillWidth: true
+                                                font.pixelSize: 9
+                                                padding: 10
+                                                background: Rectangle {
+                                                    radius: 5
+                                                    border.color: parent.focus ? "#326195" : "#888"
+                                                    border.width: 1
+                                                    color: parent.focus ? "#efefef" : "#ffffff"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // IS FULL & VALF PRMS
+                            Rectangle{
+                                Layout.preferredHeight: 50
+                                Layout.fillWidth: true
+                                Layout.alignment: Qt.AlignTop
+                                Layout.margins: 2
+                                color: "transparent"
+
+                                RowLayout{
+                                    anchors.fill: parent
+
+                                    // IS FULL PRM
+                                    Rectangle{
+                                        Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        Layout.alignment: Qt.AlignTop
+                                        color: "transparent"
+
+                                        ColumnLayout{
+                                            anchors.fill: parent
+
+                                            Label{
+                                                Layout.fillWidth: true
+                                                Layout.preferredHeight: 15
+                                                Layout.alignment: Qt.AlignTop
+                                                horizontalAlignment: Text.AlignLeft
+                                                text:'Ürün Var Bilgisi'
+                                                font.pixelSize: 12
+                                            }
+
+                                            TextField {
+                                                id: txtStgIsFullPrm
+                                                Layout.fillHeight: true
+                                                Layout.fillWidth: true
+                                                font.pixelSize: 9
+                                                padding: 10
+                                                background: Rectangle {
+                                                    radius: 5
+                                                    border.color: parent.focus ? "#326195" : "#888"
+                                                    border.width: 1
+                                                    color: parent.focus ? "#efefef" : "#ffffff"
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // VALF PRM
+                                    Rectangle{
+                                        Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        Layout.alignment: Qt.AlignTop
+                                        color: "transparent"
+
+                                        ColumnLayout{
+                                            anchors.fill: parent
+
+                                            Label{
+                                                Layout.fillWidth: true
+                                                Layout.preferredHeight: 15
+                                                Layout.alignment: Qt.AlignTop
+                                                horizontalAlignment: Text.AlignLeft
+                                                text:'Valf Bilgisi'
+                                                font.pixelSize: 12
+                                            }
+
+                                            TextField {
+                                                id: txtStgValfPrm
+                                                Layout.fillHeight: true
+                                                Layout.fillWidth: true
+                                                font.pixelSize: 9
+                                                padding: 10
+                                                background: Rectangle {
+                                                    radius: 5
+                                                    border.color: parent.focus ? "#326195" : "#888"
+                                                    border.width: 1
+                                                    color: parent.focus ? "#efefef" : "#ffffff"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // ROBOT MASTER JOB PRM
+                            Rectangle{
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 50
+                                Layout.alignment: Qt.AlignTop
+                                Layout.margins: 2
+                                color: "transparent"
+
+                                ColumnLayout{
+                                    anchors.fill: parent
+
+                                    Label{
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: 15
+                                        Layout.alignment: Qt.AlignTop
+                                        horizontalAlignment: Text.AlignLeft
+                                        text:'Master Job Bilgisi'
+                                        font.pixelSize: 12
+                                    }
+
+                                    TextField {
+                                        id: txtStgRbToMasterJob
+                                        Layout.fillHeight: true
+                                        Layout.fillWidth: true
+                                        font.pixelSize: 9
+                                        padding: 10
+                                        background: Rectangle {
+                                            radius: 5
+                                            border.color: parent.focus ? "#326195" : "#888"
+                                            border.width: 1
+                                            color: parent.focus ? "#efefef" : "#ffffff"
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // ACTION BUTTONS
+                            Rectangle{
+                                Layout.preferredHeight: 50
+                                Layout.fillWidth: true
+                                Layout.alignment: Qt.AlignTop
+                                Layout.margins: 2
+                                color: "transparent"
+
+                                RowLayout{
+                                    anchors.fill: parent
+                                    spacing: 10
+
+                                    // SETTINGS SAVE BUTTON
+                                    Button{
+                                        onClicked: saveSettings()
+                                        Layout.preferredWidth: 100
+                                        Layout.fillHeight: true
+                                        padding: 5
+                                        background: Rectangle {
+                                            color: "#24d151"
+                                            border.width: 1
+                                            border.color: "#333"
+                                            radius: 4
+                                        }
+                                        Image {
+                                            anchors.centerIn: parent
+                                            sourceSize.width: 50
+                                            sourceSize.height: 30
+                                            fillMode: Image.Stretch
+                                            source: "../assets/save.png"
+                                        }
+                                    }
+
+                                    Label{
+                                        id: lblSaveSettingsResult
+                                        Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        verticalAlignment: Qt.AlignVCenter
+                                        horizontalAlignment: Qt.AlignLeft
+                                        color: "#333"
+                                        font.bold: true
+                                    }
+                                }
+                            }
+
+                            // VIEW BUFFER RECT
+                            Rectangle{
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                color: "transparent"
                             }
                         }
                     }

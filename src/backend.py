@@ -44,6 +44,9 @@ class BackendManager(QObject):
     deleteShiftFinished = Signal(str)
     shiftListNeedsRefresh = Signal()
 
+    getSettings = Signal(str)
+    saveSettingsFinished = Signal(str)
+
     #SLOTS
     @Slot()
     def requestShowSettings(self):
@@ -218,3 +221,17 @@ class BackendManager(QObject):
     def broadcastShiftListRefresh(self):
         self.shiftListNeedsRefresh.emit()
 
+
+    # SETTINGS SLOTS
+    @Slot()
+    def requestSettings(self):
+        stgModel = getConfig()
+        self.getSettings.emit(json.dumps(stgModel))
+
+
+    @Slot(str)
+    def saveSettings(self, model):
+        data = json.loads(model)
+        postResult = saveConfig(data)
+        self.saveSettingsFinished.emit(json.dumps(postResult))
+        

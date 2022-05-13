@@ -9,33 +9,45 @@ import QtQuick.Extras 1.4
 Item{
     property string sectionList
     property int loginState: 0
-    property var activeProduct: new Object{ id: 0 };
+    property var activeProduct: new Object({ id: 1 })
 
     // ON LOAD EVENT
     Component.onCompleted: function(){
-        drawParts();
-        requestSections();
+        requestProduct();
         requestState();
     }
 
     function drawParts(){
         const stdImage = '../assets/climate-parts.jpeg';
-        const partCategories = [
-            { partName: 'Serigrafi', partImageLeft: stdImage, partImageRight: stdImage },
-            { partName: 'Kapak', partImageLeft: stdImage, partImageRight: stdImage },
-            { partName: 'Yan Gövde', partImageLeft: stdImage, partImageRight: stdImage },
-            { partName: 'Gövde Ön', partImageLeft: stdImage, partImageRight: stdImage },
-            { partName: 'İç Gövde', partImageLeft: stdImage, partImageRight: stdImage },
-        ];
 
-        for (var i = 0; i < partCategories.length; i++){
-            var partObj = partCategories[i];
+        if (activeProduct && activeProduct.sections){
+            for (var i = 0; i < activeProduct.sections.length; i++){
+                var partObj = activeProduct.sections[i];
 
-            cmpPartCategory.createObject(partsContainer, {
-                    partName: partObj.partName,
-                    partImageLeft: partObj.partImageLeft,
-                    partImageRight: partObj.partImageRight,
+                cmpPartCategory.createObject(partsContainer, {
+                        partName: partObj.sectionName,
+                        partImageLeft: null,
+                        partImageRight: null,
+                    });
+            }
+        }
+    }
+
+    function bindTestSteps(){
+        if (testDataContainer.children.length > 0){
+            for(var i = testDataContainer.children.length; i > 0 ; i--) {
+                testDataContainer.children[i-1].destroy()
+            }
+        }
+
+        if (activeProduct && activeProduct.steps){
+            activeProduct.steps.sort((a,b) => a.orderNo - b.orderNo).forEach(st => {
+                cmpTestData.createObject(testDataContainer, {
+                    controlSection: st.testName,
+                    controlStatus: true,
+                    faultCount: 0,
                 });
+            });
         }
     }
 
@@ -43,34 +55,12 @@ Item{
         popupAuth.open();
     }
 
-    function requestSections(){
-        backend.requestSections(1);
-    }
-
     function requestState(){
         backend.requestState();
     }
 
-    function requestSteps(){
-
-    }
-
-    function drawState(stateData){
-        if (testDataContainer.children.length > 0){
-            for(var i = testDataContainer.children.length; i > 0 ; i--) {
-                testDataContainer.children[i-1].destroy()
-            }
-        }
-
-        if (stateData && stateData.length > 0){
-            stateData.forEach(st => {
-                cmpTestData.createObject(testDataContainer, {
-                    controlSection: st.Section,
-                    controlStatus: st.Status,
-                    faultCount: st.FaultCount,
-                });
-            });
-        }
+    function requestProduct(){
+        backend.requestProductInfo(activeProduct.id);
     }
 
     function changeShift(){}
@@ -79,13 +69,13 @@ Item{
     Connections {
         target: backend
 
-        function onGetSections(sectionData){
-            sectionList = sectionData;
-            canvasProduct.requestPaint();
-        }
-
-        function onGetState(stateData){
-            drawState(JSON.parse(stateData));
+        function onGetProductInfo(data){
+            activeProduct = JSON.parse(data);
+            if (activeProduct.sections)
+                activeProduct.sections = activeProduct.sections.sort((a,b) => a.orderNo - b.orderNo);
+            
+            drawParts();
+            bindTestSteps();
         }
     }
 

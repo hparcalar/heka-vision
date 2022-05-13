@@ -380,6 +380,48 @@ def deleteShift(shiftId):
     return result
 
 
+# CONFIG CRUD
+def getConfig():
+    data = None
+    try:
+        rawData = ComConfig.select().first()
+        data = model_to_dict(rawData)
+    except:
+        pass
+    return data
+
+
+def saveConfig(model):
+    result = { 'Result': False, 'ErrorMessage': '', 'RecordId': 0 }
+    try:
+        dbObj:ComConfig = None
+        try:
+            dbObj = ComConfig.select().first()
+        except Exception as ei:
+            print(ei)
+            pass
+
+        if not dbObj:
+            dbObj = ComConfig()
+
+        dbObj.robotIp = model['robotIp']
+        dbObj.robotPort = model['robotPort']
+        dbObj.cameraIp = model['cameraIp']
+        dbObj.cameraPort = model['cameraPort']
+        dbObj.rbFromSafetyHome = model['rbFromSafetyHome']
+        dbObj.rbToMasterJob = model['rbToMasterJob']
+        dbObj.rbToSafetyHome = model['rbToSafetyHome']
+        dbObj.valfPrm = model['valfPrm']
+        dbObj.isFullPrm = model['isFullPrm']
+
+        dbObj.save()
+        result['Result'] = True
+    except Exception as e:
+        print(e)
+
+    return result
+
+
 # POCO CLASSES
 class BaseModel(Model):
     class Meta:
