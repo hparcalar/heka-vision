@@ -7,18 +7,50 @@ import QtGraphicalEffects 1.0
 import QtQuick.Extras 1.4
 
 Item{
+    id: testViewFormContainer
+
     property string sectionList
     property int loginState: 0
-    property var activeProduct: new Object({ id: 1 })
+
+    property string silentCardNo: ""
+    property date silentDate: new Date()
+    property bool silentDateSet: false
+    property double silentReadSeq: 1000.0
+
+    property var activeProduct: new Object({ id: -1 })
+    property var activeEmployee: new Object({ id: -1 })
+    property var activeShift: new Object({ id: -1 })
+
+    // LOGIN WARNING MESSAGE
+    Timer {
+        id: tmrCardRead
+        interval: 300
+        repeat: false
+        running: false
+        onTriggered: {
+            if (silentReadSeq < 300 && silentCardNo)
+            {
+                if (silentCardNo.length > 2)
+                    backend.requestEmployeeCard(silentCardNo);
+                else{
+                    silentDateSet = false;
+                    silentCardNo = "";
+                }
+            }
+        }
+    }
 
     // ON LOAD EVENT
     Component.onCompleted: function(){
         requestProduct();
         requestState();
+        popupCardRead.open();
     }
 
     function drawParts(){
-        const stdImage = '../assets/climate-parts.jpeg';
+        for(var i = partsContainer.children.length; i > 0 ; i--) {
+            partsContainer.children[i-1].destroy()
+        }
 
         if (activeProduct && activeProduct.sections){
             for (var i = 0; i < activeProduct.sections.length; i++){
@@ -63,7 +95,109 @@ Item{
         backend.requestProductInfo(activeProduct.id);
     }
 
-    function changeShift(){}
+    function clearIntersectedAreas(gridArr, area){
+        const cluster = [];
+        cluster.push({ x: area.posX, y: area.posY });
+        
+        for (let i = 0; i < area.sectionWidth * area.sectionHeight; i++) {
+            cluster.push({ x: i % area.sectionWidth + area.posX, y: Math.floor(i / area.sectionWidth) + area.posY });
+        }
+
+        const foundShallows = gridArr.filter(d => d.isShallow == true && cluster.some(c => c.x == d.posX && c.y == d.posY));
+        if (foundShallows){
+            gridArr = gridArr.filter(item => !foundShallows.includes(item))
+        }
+
+        return gridArr;
+    }
+
+    function bindGridSchema(){
+        try {
+            var w = activeProduct.gridWidth;
+            var h = activeProduct.gridHeight;
+
+            if (!w || !h)
+                return;
+
+            var gridArr = [];
+
+            for (let i = 0; i < w * h; i++) {
+                gridArr.push({
+                    areaNo: i + 1,
+                    posX: (i % w),
+                    posY: Math.floor(i  / w),
+                    sectionWidth: 1,
+                    sectionHeight: 1,
+                    sectionName: '',
+                    isShallow: true,
+                });
+            }
+
+            if (activeProduct && activeProduct.sections){
+                activeProduct.sections.forEach(d => {
+                    const blockObj = {
+                        areaNo: d.areaNo,
+                        posX: d.posX,
+                        posY: d.posY,
+                        sectionWidth: d.sectionWidth,
+                        sectionHeight: d.sectionHeight,
+                        sectionName: d.sectionName,
+                        isShallow: false,
+                    };
+                    gridArr = clearIntersectedAreas(gridArr, blockObj);
+                    gridArr.push(blockObj);
+                });
+            }
+
+            gridProduct.columns = w;
+            gridProduct.rows = h;
+            rptGridProduct.model = gridArr.sort((a,b) => (a.posY * w + a.posX) - (b.posY * w + b.posX));
+        } 
+        catch (error) {
+
+        }
+    }
+
+    function bindProduct(){
+        if (activeProduct){
+            try {
+                txtProductCode.text = 'Ürün : ' + activeProduct.productNo;
+            } catch (error) {
+                
+            }
+        }
+
+        drawParts();
+        bindTestSteps();
+        bindGridSchema();
+    }
+
+    function showProductList(){
+        var popup = cmpProductList.createObject(testViewFormContainer, {});
+        popup.open();
+    }
+
+    function bindEmployee(){
+        if (activeEmployee){
+            txtOperatorName.text = 'Operatör: ' + activeEmployee.employeeName;
+        }
+    }
+
+    function showEmployeeList(){
+        var popup = cmpEmployeeList.createObject(testViewFormContainer, {});
+        popup.open();
+    }
+
+    function bindShift(){
+        if (activeShift){
+            txtShiftCode.text = 'Vardiya: ' + activeShift.shiftCode;
+        }
+    }
+
+    function showShiftist(){
+        var popup = cmpShiftList.createObject(testViewFormContainer, {});
+        popup.open();
+    }
 
     // BACKEND SIGNALS & SLOTS
     Connections {
@@ -71,11 +205,47 @@ Item{
 
         function onGetProductInfo(data){
             activeProduct = JSON.parse(data);
+            if (activeProduct){
+                if (activeProduct.sections)
+                    activeProduct.sections = activeProduct.sections.sort((a,b) => a.orderNo - b.orderNo);
+                
+                bindProduct();
+            }
+            else{
+                showProductList();
+            }
+        }
+
+        function onEmployeeSelected(data){
+            activeEmployee = JSON.parse(data);
+            bindEmployee();
+        }
+
+        function onShiftSelected(data){
+            activeShift = JSON.parse(data);
+            bindShift();
+        }
+
+        function onProductSelected(data){
+            activeProduct = JSON.parse(data);
             if (activeProduct.sections)
                 activeProduct.sections = activeProduct.sections.sort((a,b) => a.orderNo - b.orderNo);
-            
-            drawParts();
-            bindTestSteps();
+
+            bindProduct();
+        }
+
+        function onEmployeeCardRead(data){
+            activeEmployee = JSON.parse(data);
+            if (activeEmployee){
+                popupCardRead.close();
+                bindEmployee();
+            }
+            else{
+                silentDateSet = false;
+                silentCardNo = "";
+                lblCardError.visible = true;
+                txtCardNo.text = "";
+            }
         }
     }
 
@@ -137,19 +307,20 @@ Item{
                         Layout.fillWidth: true
                         Layout.preferredHeight: 50
                         echoMode: TextInput.Password
-                        onEditingFinished: function(){
-                            if (txtLoginPassword.text == '8910'){
-                                if (loginState == 0){
-                                    loginState = 1;
-                                    popupAuth.close();
-                                    backend.requestShowSettings();
+                        Keys.onPressed: function(event){
+                            if (event.key == Qt.Key_Enter){
+                                if (txtLoginPassword.text == '8910'){
+                                    if (loginState == 0){
+                                        loginState = 1;
+                                        popupAuth.close();
+                                        backend.requestShowSettings();
+                                    }
+                                }
+                                else{
+                                    lblLoginError.visible = true;
                                 }
                             }
-                            else{
-                                lblLoginError.visible = true;
-                            }
                         }
-                        
                         font.pixelSize: 24
                         placeholderText: qsTr("Parolayı girin")
                     }
@@ -264,6 +435,219 @@ Item{
                     }
                 }
             }
+        }
+    }
+
+    Popup {
+        id: popupCardRead
+        modal: true
+        dim: true
+        Overlay.modal: Rectangle {
+            color: "#aacfdbe7"
+        }
+
+        anchors.centerIn: parent
+        width: parent.width / 3
+        height: 210
+
+        enter: Transition {
+            NumberAnimation { properties: "opacity"; from: 0; to: 1 }
+        }
+
+        exit: Transition {
+            NumberAnimation { properties: "opacity"; from: 1; to: 0 }
+        }
+
+        onAboutToShow: function(){
+            silentCardNo = "";
+            silentDateSet = false;
+            silentReadSeq = 0.0;
+
+            lblCardError.visible = false;
+            txtCardNo.text = '';
+        }
+
+        onOpened: function(){
+            txtCardNo.forceActiveFocus();
+        }
+
+        ColumnLayout{
+            anchors.fill: parent
+
+            Label{
+                Layout.fillWidth: true
+                Layout.preferredHeight: 40
+                Layout.alignment: Qt.AlignTop
+                horizontalAlignment: Text.AlignHCenter
+                text:'Personel Kartınızı Okutun'
+                font.bold: true
+                font.pixelSize: 24
+            }
+
+            Rectangle{
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                color: "transparent"
+
+                ColumnLayout{
+                    anchors.fill: parent
+
+                    TextField {
+                        id: txtCardNo
+                        Layout.alignment: Qt.AlignTop
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 50
+                        echoMode: TextInput.Password
+                        Keys.onPressed: function(event){
+                            if (!silentDateSet){
+                                silentDateSet = true;
+                                silentDate = new Date();
+                            }
+
+                            const dtKey = new Date();
+                            const diffMs = dtKey.getTime() - silentDate.getTime();
+
+                            if (silentCardNo.length > 0)
+                                silentReadSeq = (silentReadSeq + diffMs) / silentCardNo.length;
+
+                            if (event.text)
+                                silentCardNo += event.text;
+
+                            silentDate = dtKey;
+
+                            tmrCardRead.running = false;
+                            tmrCardRead.running = true;
+                        }
+                        font.pixelSize: 24
+                        placeholderText: qsTr("Kart No")
+                    }
+
+                    Label{
+                        id: lblCardError
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 40
+                        Layout.alignment: Qt.AlignTop
+                        topPadding:5
+                        visible: false
+                        color: "red"
+                        background: Rectangle{
+                            anchors.fill: parent
+                            anchors.bottomMargin: 10
+                            color:"#22fa0202"
+                            border.color: "red"
+                            border.width: 1
+                            radius: 5
+                        }
+                        horizontalAlignment: Text.AlignHCenter
+                        text:'Tanımsız Kart'
+                        font.bold: true
+                        font.pixelSize: 18
+                    }
+                }
+            }
+
+            Rectangle{
+                Layout.fillWidth: true
+                Layout.preferredHeight: 50
+                Layout.alignment: Qt.AlignBottom
+                color: "transparent"
+
+                RowLayout{
+                    anchors.fill: parent
+
+                    Button{
+                        id: btnCardCancel
+                        onClicked: function(){
+                            popupCardRead.close();
+                        }
+                        text: "VAZGEÇ"
+                        Layout.preferredWidth: parent.width * 0.5
+                        Layout.fillHeight: true
+                        font.pixelSize: 24
+                        font.bold: true
+                        padding: 5
+                        leftPadding: 50
+                        palette.buttonText: "#333"
+                        background: Rectangle {
+                            border.width: btnCardCancel.activeFocus ? 2 : 1
+                            border.color: "#333"
+                            radius: 4
+                            gradient: Gradient {
+                                GradientStop { position: 0 ; color: btnCardCancel.pressed ? "#AAA" : "#dedede" }
+                                GradientStop { position: 1 ; color: btnCardCancel.pressed ? "#dedede" : "#AAA" }
+                            }
+                        }
+
+                        Image {
+                            anchors.top: btnCardCancel.top
+                            anchors.left: btnCardCancel.left
+                            anchors.topMargin: 10
+                            anchors.leftMargin: 10
+                            sourceSize.width: 50
+                            sourceSize.height: 30
+                            fillMode: Image.Stretch
+                            source: "../assets/back.png"
+                        }
+                    }
+
+                    Button{
+                        id: btnCardApply
+                        text: "GİRİŞ"
+                        onClicked: function(){
+                            backend.requestEmployeeCard(txtCardNo.text);
+                        }
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        font.pixelSize: 24
+                        font.bold: true
+                        padding: 5
+                        leftPadding: 50
+                        palette.buttonText: "#333"
+                        background: Rectangle {
+                            border.width: btnCardApply.activeFocus ? 2 : 1
+                            border.color: "#326195"
+                            radius: 4
+                            gradient: Gradient {
+                                GradientStop { position: 0 ; color: btnCardApply.pressed ? "#326195" : "#dedede" }
+                                GradientStop { position: 1 ; color: btnCardApply.pressed ? "#dedede" : "#326195" }
+                            }
+                        }
+
+                        Image {
+                            anchors.top: btnCardApply.top
+                            anchors.left: btnCardApply.left
+                            anchors.topMargin: 10
+                            anchors.leftMargin: 10
+                            sourceSize.width: 50
+                            sourceSize.height: 30
+                            fillMode: Image.Stretch
+                            source: "../assets/login.png"
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // FORM COMPONENTS
+    Component{
+        id: cmpEmployeeList
+        EmployeeList{
+            employeeList: []
+        }
+    }
+
+    Component{
+        id: cmpShiftList
+        ShiftList{
+            shiftList: []
+        }
+    }
+
+    Component{
+        id: cmpProductList
+        ProductList{
+            productList: []
         }
     }
 
@@ -457,50 +841,109 @@ Item{
 
                             // PRODUCT INFORMATION
                             Rectangle{
-                                Layout.preferredWidth: parent.width / 2
+                                Layout.preferredWidth: parent.width * 0.4
                                 Layout.fillHeight: true
                                 color: "transparent"
 
                                 ColumnLayout{
                                     anchors.fill: parent
 
-                                    Text {
-                                        id: txtProductCode
+                                    Button {
+                                        id: btnProductCode
+                                        onClicked: showProductList()
                                         Layout.fillWidth: true
-                                        horizontalAlignment: Text.AlignHCenter
-                                        color:"#326195"
-                                        padding: 2
-                                        font.pixelSize: 32
-                                        // style: Text.Outline
-                                        // styleColor:'black'
-                                        font.bold: true
-                                        text: "Ürün Kodu: DK084614"
+                                        padding: 5
+                                        text: ""
+                                        background: Rectangle{
+                                            border.width: btnProductCode.activeFocus ? 2 : 1
+                                            border.color: "#9f9f9f"
+                                            radius: 4
+                                            gradient: Gradient {
+                                                GradientStop { position: 0 ; color: btnProductCode.pressed ? "#AAA" : "#dedede" }
+                                                GradientStop { position: 1 ; color: btnProductCode.pressed ? "#dedede" : "#AAA" }
+                                            }
+                                        }
+                                        contentItem: Label {
+                                            id: txtProductCode
+                                            color:"#326195"
+                                            text:"Ürün : "
+                                            anchors.fill: parent
+                                            minimumPointSize: 5
+                                            font.pointSize: 16
+                                            font.bold: true
+                                            fontSizeMode: Text.Fit
+                                            horizontalAlignment: Text.AlignHCenter
+                                            verticalAlignment: Text.AlignVCenter
+                                            // wrapMode: Label.Wrap
+                                            // style: Text.Outline
+                                            // styleColor:'#555'
+                                        }
                                     }
 
-                                    Text {
-                                        id: txtOperatorName
+                                    Button {
+                                        id: btnOperatorName
                                         Layout.fillWidth: true
-                                        horizontalAlignment: Text.AlignHCenter
-                                        color:"#333"
-                                        padding: 2
-                                        font.pixelSize: 24
-                                        // style: Text.Outline
-                                        // styleColor:'black'
-                                        font.bold: false
-                                        text: "Operatör: Yusuf SARI"
+                                        onClicked: function(){
+                                            popupCardRead.open();
+                                        }//showEmployeeList()
+                                        padding: 5
+                                        text: ""
+                                        background: Rectangle{
+                                            border.width: btnOperatorName.activeFocus ? 2 : 1
+                                            border.color: "#9f9f9f"
+                                            radius: 4
+                                            gradient: Gradient {
+                                                GradientStop { position: 0 ; color: btnOperatorName.pressed ? "#AAA" : "#dedede" }
+                                                GradientStop { position: 1 ; color: btnOperatorName.pressed ? "#dedede" : "#AAA" }
+                                            }
+                                        }
+                                        contentItem: Label {
+                                            id: txtOperatorName
+                                            color:"#333"
+                                            text:"Operatör: "
+                                            anchors.fill: parent
+                                            minimumPointSize: 5
+                                            font.pointSize: 16
+                                            font.bold: false
+                                            fontSizeMode: Text.Fit
+                                            horizontalAlignment: Text.AlignHCenter
+                                            verticalAlignment: Text.AlignVCenter
+                                            // wrapMode: Label.Wrap
+                                            // style: Text.Outline
+                                            // styleColor:'#555'
+                                        }
                                     }
 
-                                    Text {
-                                        id: txtShiftName
+                                    Button {
+                                        id: btnShiftCode
+                                        onClicked: showShiftist()
                                         Layout.fillWidth: true
-                                        horizontalAlignment: Text.AlignHCenter
-                                        color:"#333"
-                                        padding: 2
-                                        font.pixelSize: 24
-                                        // style: Text.Outline
-                                        // styleColor:'black'
-                                        font.bold: false
-                                        text: "Vardiya: A"
+                                        padding: 5
+                                        text: ""
+                                        background: Rectangle{
+                                            border.width: btnShiftCode.activeFocus ? 2 : 1
+                                            border.color: "#9f9f9f"
+                                            radius: 4
+                                            gradient: Gradient {
+                                                GradientStop { position: 0 ; color: btnShiftCode.pressed ? "#AAA" : "#dedede" }
+                                                GradientStop { position: 1 ; color: btnShiftCode.pressed ? "#dedede" : "#AAA" }
+                                            }
+                                        }
+                                        contentItem: Label {
+                                            id: txtShiftCode
+                                            color:"#333"
+                                            text:"Vardiya: "
+                                            anchors.fill: parent
+                                            minimumPointSize: 5
+                                            font.pointSize: 16
+                                            font.bold: false
+                                            fontSizeMode: Text.Fit
+                                            horizontalAlignment: Text.AlignHCenter
+                                            verticalAlignment: Text.AlignVCenter
+                                            // wrapMode: Label.Wrap
+                                            // style: Text.Outline
+                                            // styleColor:'#555'
+                                        }
                                     }
                                 }
                             }
@@ -511,72 +954,62 @@ Item{
                                 Layout.fillHeight: true
                                 color: "transparent"
 
-                                Flow{
-                                    anchors.fill:parent
-                                    spacing:5
-                                    layoutDirection: Qt.RightToLeft
+                                RowLayout{
+                                    anchors.fill: parent
 
-                                    Button{
-                                        text: "Ayarlar"
-                                        onClicked: openSettings()
-                                        Layout.alignment: Qt.AlignRight | Qt.AlignTop
-                                        id:btnSettings
-                                        font.pixelSize: 18
-                                        font.bold: true
-                                        padding: 10
-                                        leftPadding: 50
-                                        palette.buttonText: "#333"
-                                        background: Rectangle {
-                                            border.width: btnSettings.activeFocus ? 2 : 1
-                                            border.color: "#333"
-                                            radius: 4
-                                            gradient: Gradient {
-                                                GradientStop { position: 0 ; color: btnSettings.pressed ? "#AAA" : "#dedede" }
-                                                GradientStop { position: 1 ; color: btnSettings.pressed ? "#dedede" : "#AAA" }
-                                            }
-                                        }
+                                    Rectangle{
+                                        Layout.preferredWidth: parent.width * 0.7
+                                        Layout.fillHeight: true
+                                        color: "blue"
 
-                                        Image {
-                                            anchors.top: btnSettings.top
-                                            anchors.left: btnSettings.left
-                                            anchors.topMargin: 5
-                                            anchors.leftMargin: 10
-                                            sourceSize.width: 50
-                                            sourceSize.height: 30
-                                            fillMode: Image.Stretch
-                                            source: "../assets/settings.png"
-                                        }
                                     }
 
-                                    Button{
-                                        text: "Vardiya Değiştir"
-                                        onClicked: changeShift()
-                                        Layout.alignment: Qt.AlignRight | Qt.AlignTop
-                                        id:btnChangeShift
-                                        font.pixelSize: 18
-                                        font.bold: true
-                                        padding: 10
-                                        leftPadding: 50
-                                        palette.buttonText: "#333"
-                                        background: Rectangle {
-                                            border.width: btnChangeShift.activeFocus ? 2 : 1
-                                            border.color: "#326195"
-                                            radius: 4
-                                            gradient: Gradient {
-                                                GradientStop { position: 0 ; color: btnChangeShift.pressed ? "#326195" : "#dedede" }
-                                                GradientStop { position: 1 ; color: btnChangeShift.pressed ? "#dedede" : "#326195" }
-                                            }
-                                        }
+                                    Rectangle{
+                                        Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        color: "transparent"
 
-                                        Image {
-                                            anchors.top: btnChangeShift.top
-                                            anchors.left: btnChangeShift.left
-                                            anchors.topMargin: 5
-                                            anchors.leftMargin: 10
-                                            sourceSize.width: 50
-                                            sourceSize.height: 30
-                                            fillMode: Image.Stretch
-                                            source: "../assets/exchange.png"
+                                        Button{
+                                            text: "Ayarlar"
+                                            anchors.fill: parent
+                                            onClicked: openSettings()
+                                            Layout.alignment: Qt.AlignRight | Qt.AlignTop
+                                            id:btnSettings
+                                            // font.pixelSize: 18
+                                            // font.bold: true
+                                            padding: 10
+                                            contentItem:Label{
+                                                anchors.fill: parent
+                                                anchors.topMargin: 40
+                                                minimumPointSize: 5
+                                                font.pointSize: 16
+                                                font.bold: false
+                                                fontSizeMode: Text.Fit
+                                                horizontalAlignment: Text.AlignHCenter
+                                                verticalAlignment: Text.AlignVCenter
+                                                text: "AYARLAR"
+                                            }
+                                            palette.buttonText: "#333"
+                                            background: Rectangle {
+                                                border.width: btnSettings.activeFocus ? 2 : 1
+                                                border.color: "#333"
+                                                radius: 4
+                                                gradient: Gradient {
+                                                    GradientStop { position: 0 ; color: btnSettings.pressed ? "#AAA" : "#dedede" }
+                                                    GradientStop { position: 1 ; color: btnSettings.pressed ? "#dedede" : "#AAA" }
+                                                }
+                                            }
+
+                                            Image {
+                                                anchors.top: btnSettings.top
+                                                anchors.left: btnSettings.left
+                                                anchors.topMargin: btnSettings.height * 0.5 - 30
+                                                anchors.leftMargin: btnSettings.width * 0.5 - 15
+                                                sourceSize.width: 50
+                                                sourceSize.height: 30
+                                                fillMode: Image.Stretch
+                                                source: "../assets/settings.png"
+                                            }
                                         }
                                     }
                                 }
@@ -591,34 +1024,64 @@ Item{
                         Layout.alignment: Qt.AlignTop
                         color: "transparent"
 
-                        Canvas {
-                            id: canvasProduct
+                        // PRODUCT SECTIONS GRID PANEL
+                        GridLayout {
+                            id: gridProduct
                             anchors.fill: parent
-                            Component.onCompleted: {
-                                loadImage("../assets/product.png")
-                            }
-                            onPaint: {
-                                var ctx = getContext("2d");
-                                const imgH = height - 10;
-                                const imgW = width / 2 + 50;
-                                const imgX = (width - imgW) / 2;
-                                const imgY = 5;
-                                ctx.drawImage('../assets/product.png', imgX, imgY, imgW, imgH);
+                            anchors.bottomMargin: 5
+                            columnSpacing: 5
+                            rowSpacing: 2
 
-                                if (sectionList != null && sectionList.length > 0){
-                                    const sections = JSON.parse(sectionList);
-                                    sections.forEach(sc => {
-                                        ctx.beginPath();
-                                        ctx.arc(imgX + sc.PosX, imgY + sc.PosY, 15, 0, 2 * Math.PI);
-                                        ctx.stroke();
-                                        
-                                        ctx.fillStyle = "white";
-                                        ctx.fill();
+                            Repeater{
+                                id: rptGridProduct
+                                
+                                Rectangle{
+                                    color: modelData.isShallow ? "transparent" : "#9dd2fa"
+                                    border.width: modelData.isShallow ? 0 : 1
+                                    border.color: "#326195"
+                                    radius: 5
+                                    Layout.column: modelData.posX
+                                    Layout.row: modelData.posY
+                                    Layout.rowSpan: modelData.sectionHeight
+                                    Layout.columnSpan: modelData.sectionWidth
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: parent.height / gridProduct.rows * modelData.sectionHeight
+                                    layer.enabled: true
+                                    layer.effect: DropShadow {
+                                        // anchors.fill: butterfly
+                                        horizontalOffset: 3
+                                        verticalOffset: 3
+                                        radius: 8.0
+                                        samples: 17
+                                        color: "#80000000"
+                                        // source: butterfly
+                                    }
+                                    gradient: Gradient {
+                                        GradientStop { position: 0.0; color: "#9dd2fa" }
+                                        GradientStop { position: 1.0; color: "#326195" }
+                                    }
 
-                                        ctx.fillStyle = "black";
-                                        ctx.font = "bold 14px sans-serif";
-                                        ctx.fillText(sc.Label, imgX + sc.PosX -5, imgY + sc.PosY + 5);
-                                    });
+                                    MouseArea{
+                                        anchors.fill: parent
+                                        onClicked: function(){
+                                            
+                                        }
+                                    }
+
+                                    Label{
+                                        anchors.fill: parent
+                                        text: modelData.sectionName ?? ''
+                                        color: "#efefef"
+                                        minimumPointSize: 5
+                                        font.pointSize: 12
+                                        font.bold: true
+                                        fontSizeMode: Text.Fit
+                                        horizontalAlignment: Text.AlignHCenter
+                                        verticalAlignment: Text.AlignVCenter
+                                        // wrapMode: Label.Wrap
+                                        style: Text.Outline
+                                        styleColor:'#333333'
+                                    }
                                 }
                             }
                         }

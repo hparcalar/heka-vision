@@ -31,18 +31,22 @@ class BackendManager(QObject):
     getProductInfo = Signal(str)
     deleteProductFinished = Signal(str)
     productListNeedsRefresh = Signal()
+    productSelected = Signal(str)
 
     saveEmployeeFinished = Signal(str)
     getEmployeeList = Signal(str)
     getEmployeeInfo = Signal(str)
     deleteEmployeeFinished = Signal(str)
     employeeListNeedsRefresh = Signal()
+    employeeSelected = Signal(str)
+    employeeCardRead = Signal(str)
 
     saveShiftFinished = Signal(str)
     getShiftList = Signal(str)
     getShiftInfo = Signal(str)
     deleteShiftFinished = Signal(str)
     shiftListNeedsRefresh = Signal()
+    shiftSelected = Signal(str)
 
     getSettings = Signal(str)
     saveSettingsFinished = Signal(str)
@@ -138,6 +142,11 @@ class BackendManager(QObject):
 
     @Slot(int)
     def requestProductInfo(self, productId):
+        if productId == -1:
+            prList = getProductList()
+            if len(prList) == 1:
+                productId = prList[0]['id']
+
         data = getProduct(productId)
         self.getProductInfo.emit(json.dumps(data))
 
@@ -154,7 +163,14 @@ class BackendManager(QObject):
         procResult = deleteProduct(productId)
         self.deleteProductFinished.emit(json.dumps(procResult))
 
-    
+
+    @Slot(int)
+    def broadcastProductSelected(self, productId):
+        data = getProduct(productId)
+        if data:
+            self.productSelected.emit(json.dumps(data))
+
+
     @Slot()
     def broadcastProductListRefresh(self):
         self.productListNeedsRefresh.emit()
@@ -174,6 +190,12 @@ class BackendManager(QObject):
 
 
     @Slot(str)
+    def requestEmployeeCard(self, cardNo):
+        data = getEmployeeByCard(cardNo)
+        self.employeeCardRead.emit(json.dumps(data))
+
+
+    @Slot(str)
     def saveEmployee(self, model):
         modelData = json.loads(model)
         procResult = saveOrUpdateEmployee(modelData)
@@ -185,7 +207,14 @@ class BackendManager(QObject):
         procResult = deleteEmployee(employeeId)
         self.deleteEmployeeFinished.emit(json.dumps(procResult))
 
+
+    @Slot(int)
+    def broadcastEmployeeSelected(self, employeeId):
+        data = getEmployee(employeeId)
+        if data:
+            self.employeeSelected.emit(json.dumps(data))
     
+
     @Slot()
     def broadcastEmployeeListRefresh(self):
         self.employeeListNeedsRefresh.emit()
@@ -215,6 +244,13 @@ class BackendManager(QObject):
     def deleteShift(self, shiftId):
         procResult = deleteShift(shiftId)
         self.deleteShiftFinished.emit(json.dumps(procResult))
+
+
+    @Slot(int)
+    def broadcastShiftSelected(self, shiftId):
+        data = getShift(shiftId)
+        if data:
+            self.shiftSelected.emit(json.dumps(data))
 
     
     @Slot()

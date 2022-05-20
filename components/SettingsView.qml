@@ -445,7 +445,7 @@ Item{
                                     }
 
                                     Rectangle{
-                                        Layout.preferredWidth: parent.width * 0.4
+                                        Layout.preferredWidth: parent.width * 0.7 - 100
                                         Layout.fillHeight: true
                                         color: "transparent"
 
@@ -460,25 +460,6 @@ Item{
                                             font.underline: true
                                             font.bold: true
                                             text: "Ürün Adı"
-                                        }
-                                    }
-
-                                    Rectangle{
-                                        Layout.preferredWidth: parent.width * 0.3 - 100
-                                        Layout.fillHeight: true
-                                        color: "transparent"
-
-                                        Text {
-                                            width: parent.width
-                                            height: parent.height
-                                            horizontalAlignment: Text.AlignHCenter
-                                            verticalAlignment: Text.AlignVCenter
-                                            color:"#333"
-                                            padding: 2
-                                            font.pixelSize: 18
-                                            font.underline: true
-                                            font.bold: true
-                                            text: "Resim"
                                         }
                                     }
 
@@ -554,7 +535,7 @@ Item{
                                                     }
 
                                                     Rectangle{
-                                                        Layout.preferredWidth: parent.width * 0.4
+                                                        Layout.preferredWidth: parent.width * 0.7 - 100
                                                         Layout.fillHeight: true
                                                         color: "transparent"
 
@@ -567,23 +548,6 @@ Item{
                                                             padding: 2
                                                             font.pixelSize: 16
                                                             text: modelData.productName
-                                                        }
-                                                    }
-
-                                                    Rectangle{
-                                                        Layout.preferredWidth: parent.width * 0.3 - 100
-                                                        Layout.fillHeight: true
-                                                        color: "transparent"
-
-                                                        Text {
-                                                            width: parent.width
-                                                            height: parent.height
-                                                            horizontalAlignment: Text.AlignHCenter
-                                                            verticalAlignment: Text.AlignVCenter
-                                                            color:"#333"
-                                                            padding: 2
-                                                            font.pixelSize: 16
-                                                            text: modelData.imagePath
                                                         }
                                                     }
 

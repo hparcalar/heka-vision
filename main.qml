@@ -13,7 +13,7 @@ ApplicationWindow {
     width: screen.desktopAvailableWidth
     height: screen.desktopAvailableHeight
     // visibility: Window.FullScreen
-    flags: Qt.WindowMaximized | Qt.Window
+    // flags: Qt.WindowMaximized | Qt.Window
     visible: true
     title: qsTr("Klima Gövde-Kapak Kalite Sistemi")
     onClosing: function(){

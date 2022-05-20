@@ -40,8 +40,11 @@ def getProduct(productId):
         for st in listSteps:
             if st['section']:
                 st['sectionId'] = int(st['section'])
+                sectObj:ProductSection = ProductSection.get(ProductSection.id == int(st['section']))
+                st['sectionName'] = sectObj.sectionName
             else:
                 st['sectionId'] = None
+                st['sectionName'] = ''
             
             if st['productCamRecipe']:
                 st['camRecipeId'] = int(st['productCamRecipe'])
@@ -226,6 +229,16 @@ def getEmployee(employeeId):
     data = None
     try:
         rawData = Employee.get(Employee.id == employeeId)
+        data = model_to_dict(rawData, backrefs = True)
+    except:
+        pass
+    return data
+
+
+def getEmployeeByCard(cardNo):
+    data = None
+    try:
+        rawData = Employee.get(Employee.employeeCode == cardNo)
         data = model_to_dict(rawData, backrefs = True)
     except:
         pass

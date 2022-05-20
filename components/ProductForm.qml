@@ -2193,7 +2193,7 @@ Popup {
                                                             Text {
                                                                 width: parent.width
                                                                 height: parent.height
-                                                                horizontalAlignment: Text.AlignLeft
+                                                                horizontalAlignment: Text.AlignHCenter
                                                                 verticalAlignment: Text.AlignVCenter
                                                                 color:"#333"
                                                                 padding: 2
@@ -2205,14 +2205,14 @@ Popup {
                                                         }
 
                                                         Rectangle{
-                                                            Layout.preferredWidth: parent.width * 0.2
+                                                            Layout.preferredWidth: parent.width * 0.4 - 100
                                                             Layout.fillHeight: true
                                                             color: "transparent"
 
                                                             Text {
                                                                 width: parent.width
                                                                 height: parent.height
-                                                                horizontalAlignment: Text.AlignLeft
+                                                                horizontalAlignment: Text.AlignHCenter
                                                                 verticalAlignment: Text.AlignVCenter
                                                                 color:"#333"
                                                                 padding: 2
@@ -2223,24 +2223,7 @@ Popup {
                                                             }
                                                         }
 
-                                                        Rectangle{
-                                                            Layout.preferredWidth: parent.width * 0.2 - 100
-                                                            Layout.fillHeight: true
-                                                            color: "transparent"
-
-                                                            Text {
-                                                                width: parent.width
-                                                                height: parent.height
-                                                                horizontalAlignment: Text.AlignLeft
-                                                                verticalAlignment: Text.AlignVCenter
-                                                                color:"#333"
-                                                                padding: 2
-                                                                font.pixelSize: 14
-                                                                font.underline: true
-                                                                font.bold: true
-                                                                text: "Reçete"
-                                                            }
-                                                        }
+                                                        
 
                                                         Rectangle{
                                                             Layout.preferredWidth: 100
@@ -2333,7 +2316,7 @@ Popup {
                                                                         }
 
                                                                         Rectangle{
-                                                                            Layout.preferredWidth: parent.width * 0.2
+                                                                            Layout.preferredWidth: parent.width * 0.4 - 100
                                                                             Layout.fillHeight: true
                                                                             color: "transparent"
 
@@ -2346,23 +2329,6 @@ Popup {
                                                                                 padding: 2
                                                                                 font.pixelSize: 16
                                                                                 text: (modelData.sectionName ?? '')
-                                                                            }
-                                                                        }
-
-                                                                        Rectangle{
-                                                                            Layout.preferredWidth: parent.width * 0.2 - 100
-                                                                            Layout.fillHeight: true
-                                                                            color: "transparent"
-
-                                                                            Text {
-                                                                                width: parent.width
-                                                                                height: parent.height
-                                                                                horizontalAlignment: Text.AlignHCenter
-                                                                                verticalAlignment: Text.AlignVCenter
-                                                                                color:"#333"
-                                                                                padding: 2
-                                                                                font.pixelSize: 16
-                                                                                text: (modelData.recipeName ?? '')
                                                                             }
                                                                         }
 
