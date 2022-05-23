@@ -102,7 +102,7 @@ Item{
 
             backend.saveSettings(JSON.stringify(settingsModel));
         } catch (error) {
-            console.log(error);
+            
         }
     }
 
@@ -167,13 +167,13 @@ Item{
                 txtStgCameraPort.text = (settingsModel.cameraPort ?? 0).toString();
                 txtStgRobotIp.text = settingsModel.robotIp;
                 txtStgRobotPort.text = (settingsModel.robotPort ?? 0).toString();
-                txtStgIsFullPrm.text = settingsModel.isFullPrm;
-                txtStgRbFromSafetyHome = settingsModel.rbFromSafetyHome;
-                txtStgRbToMasterJob.text = settingsModel.rbToMasterJob;
-                txtStgRbToSafetyHome.text = settingsModel.rbToSafetyHome;
-                txtStgValfPrm.text = settingsModel.valfPrm;
+                txtStgIsFullPrm.text = (settingsModel.isFullPrm ?? '');
+                txtStgRbFromSafetyHome.text = (settingsModel.rbFromSafetyHome ?? '');
+                txtStgRbToMasterJob.text = (settingsModel.rbToMasterJob ?? '');
+                txtStgRbToSafetyHome.text = (settingsModel.rbToSafetyHome ?? '');
+                txtStgValfPrm.text = (settingsModel.valfPrm ?? '');
             } catch (error) {
-                
+                console.log(error);
             }
         }
 

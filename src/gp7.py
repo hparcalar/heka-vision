@@ -1,7 +1,5 @@
-from gettext import bind_textdomain_codeset
 import socket
 import binascii
-from bitstring import BitArray
 from src.gp7_messages import *
 
 class Gp7Connector:
@@ -10,22 +8,29 @@ class Gp7Connector:
         self._robotIp = robot_ip
         self._port = port
         self._socket = None
-
+        self._connectionStatus = False
 
     def __connect(self):
         try:
-            self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self._socket.connect((self._robotIp, self._port))
+            if not self._socket:
+                self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                self._socket.settimeout(1.0)
+            if self._connectionStatus == False:
+                self._socket.connect((self._robotIp, self._port))
+                self._connectionStatus = True
         except Exception as e: 
-            print(e)
+            self._connectionStatus = False
+            # print(e)
 
 
     def __disconnect(self):
         try:
             if self._socket:
                 self._socket.close()
+                self._socket = None
         except:
             pass
+        self._connectionStatus = False
 
 
     def readInteger(self, addrNo):
@@ -37,13 +42,15 @@ class Gp7Connector:
             if len(convertedAddr) == 1:
                 convertedAddr = '0' + convertedAddr
 
+            self._socket.settimeout(1.0)
             cmd = readIntMsg.replace('{PRM}', convertedAddr)
             self._socket.sendall(bytearray.fromhex(cmd))
             retData = self._socket.recv(1024)
             binData = [ retData[32], retData[33] ]
             data = int.from_bytes(binData, 'little', signed=True)
         except Exception as e:
-            print(e)
+            # print(e)
+            pass
 
         self.__disconnect()
         return data
@@ -58,6 +65,7 @@ class Gp7Connector:
             if len(convertedAddr) == 1:
                 convertedAddr = '0' + convertedAddr
 
+            self._socket.settimeout(1.0)
             cmd = readByteMsg.replace('{PRM}', convertedAddr)
             self._socket.sendall(bytearray.fromhex(cmd))
             retData = self._socket.recv(1024)
@@ -80,13 +88,15 @@ class Gp7Connector:
 
             convertedVal = binascii.hexlify(int.to_bytes(intVal,2,byteorder='little', signed=True), ' ').decode()
 
+            self._socket.settimeout(1.0)
             cmd = writeIntMsg.replace('{PRM}', convertedAddr).replace('{VAL}', convertedVal)
             
             self._socket.sendall(bytearray.fromhex(cmd))
             retData = self._socket.recv(1024)
 
         except Exception as e:
-            print(e)
+            # print(e)
+            pass
 
         self.__disconnect()
 
@@ -101,6 +111,7 @@ class Gp7Connector:
 
             convertedVal = binascii.hexlify(int.to_bytes(byteVal,2,byteorder='little', signed=True), ' ').decode()
 
+            self._socket.settimeout(1.0)
             cmd = writeBitMsg.replace('{PRM}', convertedAddr).replace('{VAL}', convertedVal)
             
             self._socket.sendall(bytearray.fromhex(cmd))
@@ -121,6 +132,7 @@ class Gp7Connector:
                 convertedAddr = '0' + convertedAddr
 
             convertedVal = binascii.hexlify(int.to_bytes(intVal,2,byteorder='little', signed=True), ' ').decode()
+            self._socket.settimeout(1.0)
             cmd = writeRegisterMsg.replace('{PRM}', convertedAddr).replace('{VAL}', convertedVal)
             self._socket.sendall(bytearray.fromhex(cmd))
             retData = self._socket.recv(1024)
@@ -135,6 +147,7 @@ class Gp7Connector:
         self.__connect()
 
         try:
+            self._socket.settimeout(1.0)
             cmd = holdOnMsg if holdOn == True else holdOffMsg
             self._socket.sendall(bytearray.fromhex(cmd))
             retData = self._socket.recv(1024)
@@ -148,6 +161,7 @@ class Gp7Connector:
         self.__connect()
 
         try:
+            self._socket.settimeout(1.0)
             cmd = servoOnMsg if servoOn == True else servoOffMsg
             self._socket.sendall(bytearray.fromhex(cmd))
             retData = self._socket.recv(1024)
@@ -161,6 +175,7 @@ class Gp7Connector:
         self.__connect()
 
         try:
+            self._socket.settimeout(1.0)
             encodedJobName = bytearray(jobName, 'ascii')
             if len(encodedJobName) < 32:
                 remainingCount = 32 - len(encodedJobName)
@@ -184,6 +199,7 @@ class Gp7Connector:
 
         try:
             cmd = startJobMsg
+            self._socket.settimeout(1.0)
             self._socket.sendall(bytearray.fromhex(cmd))
             retData = self._socket.recv(1024)
         except Exception as e:
@@ -197,21 +213,13 @@ class Gp7Connector:
 
         try:
             cmd = alarmResetMsg
+            self._socket.settimeout(1.0)
             self._socket.sendall(bytearray.fromhex(cmd))
             retData = self._socket.recv(1024)
         except Exception as e:
             print(e)
 
         self.__disconnect()
-
-
-    def __bin(a):
-        s=''
-        t={'0':'000','1':'001','2':'010','3':'011',
-            '4':'100','5':'101','6':'110','7':'111'}
-        for c in oct(a)[1:]:
-                s+=t[c]
-        return s
 
 
     def cancelError(self):
@@ -219,6 +227,7 @@ class Gp7Connector:
 
         try:
             cmd = errorCancelMsg
+            self._socket.settimeout(1.0)
             self._socket.sendall(bytearray.fromhex(cmd))
             retData = self._socket.recv(1024)
         except Exception as e:
@@ -226,12 +235,13 @@ class Gp7Connector:
 
         self.__disconnect()
 
+
     def readStatus(self):
         self.__connect()
 
         try:
             cmd = statusReadMsg
-
+            self._socket.settimeout(1.0)
             self._socket.sendall(bytearray.fromhex(cmd))
             retData = self._socket.recv(1024)
             print(len(retData))

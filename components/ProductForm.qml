@@ -145,7 +145,7 @@ Popup {
     }
     /* END SECTION FUNCTIONS */
 
-    /* BEGIN SECTION FUNCTIONS */
+    /* BEGIN RECIPE FUNCTIONS */
     function newRecipe(){
         recipeModel = { id:0 };
         txtRecipeCode.text = '';
@@ -168,6 +168,7 @@ Popup {
             txtRecipeRbFromScanningFinished.text = recipeModel.rbFromScanningFinished;
             txtRecipeRbToRecipeStarted.text = recipeModel.rbToRecipeStarted;
             txtRecipeRbToStartScan.text = recipeModel.rbToStartScanning;
+            txtRecipeStartDelay.text = (recipeModel.startDelay ?? 0).toString();
             txtRecipeCode.focus = true;
         }
     }
@@ -180,6 +181,11 @@ Popup {
             recipeModel.rbFromScanningFinished = txtRecipeRbFromScanningFinished.text;
             recipeModel.rbToRecipeStarted = txtRecipeRbToRecipeStarted.text;
             recipeModel.rbToStartScanning = txtRecipeRbToStartScan.text;
+
+            if (txtRecipeStartDelay.text.length > 0)
+                recipeModel.startDelay = parseInt(txtRecipeStartDelay.text);
+            else
+                recipeModel.startDelay = null;
         }
 
         if (!modelObject.recipes.includes(recipeModel))
@@ -196,7 +202,7 @@ Popup {
                 // bindSectionList();
             }
     }
-    /* END SECTION FUNCTIONS */
+    /* END RECIPE FUNCTIONS */
 
     /* BEGIN STEP FUNCTIONS */
     function newStep(){
@@ -1832,6 +1838,42 @@ Popup {
 
                                                         TextField {
                                                             id: txtRecipeCamResultByteIndex
+                                                            Layout.fillHeight: true
+                                                            Layout.fillWidth: true
+                                                            font.pixelSize: 9
+                                                            padding: 10
+                                                            background: Rectangle {
+                                                                radius: 5
+                                                                border.color: parent.focus ? "#326195" : "#888"
+                                                                border.width: 1
+                                                                color: parent.focus ? "#efefef" : "#ffffff"
+                                                            }
+                                                        }
+                                                    }
+                                                }
+
+                                                // RECIPE START DELAY
+                                                Rectangle{
+                                                    Layout.preferredHeight: 50
+                                                    Layout.fillWidth: true
+                                                    Layout.alignment: Qt.AlignTop
+                                                    Layout.margins: 2
+                                                    color: "transparent"
+
+                                                    ColumnLayout{
+                                                        anchors.fill: parent
+
+                                                        Label{
+                                                            Layout.fillWidth: true
+                                                            Layout.preferredHeight: 15
+                                                            Layout.alignment: Qt.AlignTop
+                                                            horizontalAlignment: Text.AlignLeft
+                                                            text:'Başlama Gecikmesi(ms)'
+                                                            font.pixelSize: 12
+                                                        }
+
+                                                        TextField {
+                                                            id: txtRecipeStartDelay
                                                             Layout.fillHeight: true
                                                             Layout.fillWidth: true
                                                             font.pixelSize: 9

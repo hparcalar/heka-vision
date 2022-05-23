@@ -5,6 +5,7 @@ import QtQuick.Window 2.14
 import QtQuick.Layouts 1.2
 import QtGraphicalEffects 1.0
 import QtQuick.Extras 1.4
+import QtQuick.Dialogs 1.1
 
 Item{
     id: testViewFormContainer
@@ -45,6 +46,7 @@ Item{
         requestProduct();
         requestState();
         popupCardRead.open();
+        backend.startCommCheck();
     }
 
     function drawParts(){
@@ -76,7 +78,8 @@ Item{
             activeProduct.steps.sort((a,b) => a.orderNo - b.orderNo).forEach(st => {
                 cmpTestData.createObject(testDataContainer, {
                     controlSection: st.testName,
-                    controlStatus: true,
+                    controlStatus: st.liveStatus,
+                    controlResult: st.liveResult,
                     faultCount: 0,
                 });
             });
@@ -199,6 +202,32 @@ Item{
         popup.open();
     }
 
+    function testReset(){
+        var errMsg = '';
+        var isValid = true;
+        if (activeProduct.id <= 0){
+            errMsg = 'Başlamak için bir ürün seçmelisiniz.';
+            isValid = false;
+        }
+        else if (activeEmployee.id <= 0){
+            errMsg = 'Başlamak için personel kartınızı okutmalısınız.';
+            isValid = false;
+        }
+        else if (activeShift.id <= 0){
+            errMsg = 'Başlamak için vardiya seçmelisiniz.';
+            isValid = false;
+        }
+
+        if (!isValid){
+            errorDialog.text = errMsg;
+            errorDialog.visible = true;
+            return;
+        }
+
+        btnReset.enabled = false;
+        backend.resetTest(activeProduct.id);
+    }
+
     // BACKEND SIGNALS & SLOTS
     Connections {
         target: backend
@@ -245,6 +274,76 @@ Item{
                 silentCardNo = "";
                 lblCardError.visible = true;
                 txtCardNo.text = "";
+            }
+        }
+
+        function onGetDeviceStatus(data){
+            var resObj = JSON.parse(data);
+            if (resObj){
+                if (resObj.Robot == true)
+                    txtRobotStatus.color = "#32a852";
+                else
+                    txtRobotStatus.color = "red";
+
+                if (resObj.Camera == true)
+                    txtCameraStatus.color = "#32a852";
+                else
+                    txtCameraStatus.color = "red";
+
+                txtRobotStatus.text = resObj.Robot == true ? ': OK' : ': NOK';
+                txtCameraStatus.text = resObj.Camera == true ? ': OK' : ': NOK';
+            }
+        }
+
+        function onGetResetOk(){
+            btnReset.enabled = false;
+            btnMasterJobCall.enabled = true;
+            btnServoOn.enabled = false;
+            btnStart.enabled = false;
+        }
+
+        function onGetMasterJobOk(){
+            btnReset.enabled = false;
+            btnMasterJobCall.enabled = false;
+            btnServoOn.enabled = true;
+            btnStart.enabled = false;
+        }
+
+        function onGetServoOnOk(){
+            btnReset.enabled = false;
+            btnMasterJobCall.enabled = false;
+            btnServoOn.enabled = false;
+            btnStart.enabled = true;
+        }
+
+        function onGetStartOk(){
+            btnReset.enabled = false;
+            btnMasterJobCall.enabled = false;
+            btnServoOn.enabled = false;
+            btnStart.enabled = false;
+        }
+
+        function onTestStepError(data){
+            btnReset.enabled = true;
+            btnMasterJobCall.enabled = false;
+            btnServoOn.enabled = false;
+            btnStart.enabled = false;
+
+            errorDialog.text = data;
+            errorDialog.visible = true;
+        }
+
+        function onGetStepResult(data){
+            stepRes = JSON.parse(data);
+            if (stepRes){
+                const stepId = parseInt(stepRes.Message);
+                const foundStep = activeProduct.steps.find(d => d.id == stepId);
+                if (foundStep){
+                    foundStep.liveStatus = true;
+                    foundStep.liveResult = stepRes.Result;
+
+                    bindTestSteps();
+                }
             }
         }
     }
@@ -629,6 +728,17 @@ Item{
         }
     }
 
+    MessageDialog {
+        id: errorDialog
+        title: "HATA"
+        text: ""
+        visible: false
+        icon: StandardIcon.Warning
+        onAccepted: {
+            errorDialog.visible = false;
+        }
+    }
+
     // FORM COMPONENTS
     Component{
         id: cmpEmployeeList
@@ -726,6 +836,7 @@ Item{
         Rectangle{
             property string controlSection: ""
             property bool controlStatus: false
+            property bool controlResult: false
             property int faultCount: 0
 
             Layout.fillWidth: true
@@ -766,11 +877,12 @@ Item{
                     color: "transparent"
 
                     Image {
+                        visible: controlStatus
                         anchors.centerIn: parent
                         sourceSize.width: 50
                         sourceSize.height: parent.height - 5
                         fillMode: Image.Stretch
-                        source: controlStatus ? "../assets/ok.png" : "../assets/error.png"
+                        source: controlResult ? "../assets/ok.png" : "../assets/error.png"
                     }
                 }
 
@@ -960,8 +1072,128 @@ Item{
                                     Rectangle{
                                         Layout.preferredWidth: parent.width * 0.7
                                         Layout.fillHeight: true
-                                        color: "blue"
+                                        color: "transparent"
 
+                                        RowLayout{
+                                            anchors.fill: parent
+                                            spacing:0
+
+                                            Button{
+                                                text: ""
+                                                Layout.preferredWidth: parent.width * 0.25
+                                                Layout.fillHeight: true
+                                                id: btnReset
+                                                onClicked: testReset()
+                                                Layout.alignment: Qt.AlignRight | Qt.AlignTop
+                                                padding: 10
+                                                contentItem:Label{
+                                                    anchors.fill: parent
+                                                    minimumPointSize: 5
+                                                    font.pointSize: 14
+                                                    font.bold: false
+                                                    fontSizeMode: Text.Fit
+                                                    horizontalAlignment: Text.AlignHCenter
+                                                    verticalAlignment: Text.AlignVCenter
+                                                    text: "RESET"
+                                                }
+                                                palette.buttonText: "#333"
+                                                background: Rectangle {
+                                                    border.width: btnReset.activeFocus ? 2 : 1
+                                                    border.color: "#333"
+                                                    gradient: Gradient {
+                                                        GradientStop { position: 0 ; color: btnReset.enabled ? (btnReset.pressed ? "#76d11b" : "#dedede") : "#666" }
+                                                        GradientStop { position: 1 ; color: btnReset.enabled ? (btnReset.pressed ? "#dedede" : "#76d11b") : "#999" }
+                                                    }
+                                                }
+                                            }
+
+                                            Button{
+                                                text: ""
+                                                Layout.preferredWidth: parent.width * 0.25
+                                                Layout.fillHeight: true
+                                                id: btnMasterJobCall
+                                                enabled: false
+                                                Layout.alignment: Qt.AlignRight | Qt.AlignTop
+                                                padding: 10
+                                                contentItem:Label{
+                                                    anchors.fill: parent
+                                                    minimumPointSize: 5
+                                                    font.pointSize: 14
+                                                    font.bold: false
+                                                    fontSizeMode: Text.Fit
+                                                    horizontalAlignment: Text.AlignHCenter
+                                                    verticalAlignment: Text.AlignVCenter
+                                                    text: "JOB CALL"
+                                                }
+                                                palette.buttonText: "#333"
+                                                background: Rectangle {
+                                                    border.width: btnMasterJobCall.activeFocus ? 2 : 1
+                                                    border.color: "#333"
+                                                    gradient: Gradient {
+                                                        GradientStop { position: 0 ; color: btnMasterJobCall.enabled ? (btnMasterJobCall.pressed ? "#3688c7" : "#dedede") : "#666" }
+                                                        GradientStop { position: 1 ; color: btnMasterJobCall.enabled ? (btnMasterJobCall.pressed ? "#dedede" : "#3688c7") : "#999" }
+                                                    }
+                                                }
+                                            }
+
+                                            Button{
+                                                text: ""
+                                                Layout.preferredWidth: parent.width * 0.25
+                                                Layout.fillHeight: true
+                                                id: btnServoOn
+                                                enabled: false
+                                                Layout.alignment: Qt.AlignRight | Qt.AlignTop
+                                                padding: 10
+                                                contentItem:Label{
+                                                    anchors.fill: parent
+                                                    minimumPointSize: 5
+                                                    font.pointSize: 14
+                                                    font.bold: false
+                                                    fontSizeMode: Text.Fit
+                                                    horizontalAlignment: Text.AlignHCenter
+                                                    verticalAlignment: Text.AlignVCenter
+                                                    text: "SERVO ON"
+                                                }
+                                                palette.buttonText: "#333"
+                                                background: Rectangle {
+                                                    border.width: btnServoOn.activeFocus ? 2 : 1
+                                                    border.color: "#333"
+                                                    gradient: Gradient {
+                                                        GradientStop { position: 0 ; color: btnServoOn.enabled ? (btnServoOn.pressed ? "#888" : "#dedede") : "#666" }
+                                                        GradientStop { position: 1 ; color: btnServoOn.enabled ? (btnServoOn.pressed ? "#dedede" : "#888") : "#999" }
+                                                    }
+                                                }
+                                            }
+
+                                            Button{
+                                                text: ""
+                                                Layout.preferredWidth: parent.width * 0.25
+                                                Layout.fillHeight: true
+                                                id: btnStart
+                                                enabled: false
+                                                Layout.alignment: Qt.AlignRight | Qt.AlignTop
+                                                padding: 10
+                                                contentItem:Label{
+                                                    anchors.fill: parent
+                                                    minimumPointSize: 5
+                                                    font.pointSize: 14
+                                                    font.bold: false
+                                                    fontSizeMode: Text.Fit
+                                                    horizontalAlignment: Text.AlignHCenter
+                                                    verticalAlignment: Text.AlignVCenter
+                                                    text: "START"
+                                                }
+                                                palette.buttonText: "#333"
+                                                background: Rectangle {
+                                                    border.width: btnStart.activeFocus ? 2 : 1
+                                                    border.color: "#333"
+                                                    gradient: Gradient {
+                                                        GradientStop { position: 0 ; color: btnStart.enabled ? (btnStart.pressed ? "#4089d6" : "#dedede") : "#666" }
+                                                        GradientStop { position: 1 ; color: btnStart.enabled ? (btnStart.pressed ? "#dedede" : "#4089d6") : "#999" }
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
 
                                     Rectangle{
@@ -1229,6 +1461,7 @@ Item{
                                             }
 
                                             Text {
+                                                id: txtRobotStatus
                                                 Layout.fillWidth: true
                                                 horizontalAlignment: Text.AlignRight
                                                 color:"#32a852"
@@ -1236,7 +1469,7 @@ Item{
                                                 rightPadding: 10
                                                 font.pixelSize: 24
                                                 font.bold: true
-                                                text: ": OK"
+                                                text: ""
                                             }
                                         }
                                     }
@@ -1262,6 +1495,7 @@ Item{
                                             }
 
                                             Text {
+                                                id: txtCameraStatus
                                                 Layout.fillWidth: true
                                                 horizontalAlignment: Text.AlignRight
                                                 color:"#32a852"
@@ -1269,7 +1503,7 @@ Item{
                                                 rightPadding: 10
                                                 font.pixelSize: 24
                                                 font.bold: true
-                                                text: ": OK"
+                                                text: ""
                                             }
                                         }
                                     }
@@ -1297,12 +1531,12 @@ Item{
                                             Text {
                                                 Layout.fillWidth: true
                                                 horizontalAlignment: Text.AlignRight
-                                                color:"#32a852"
+                                                color: "red" //"#32a852"
                                                 padding: 2
                                                 rightPadding: 10
                                                 font.pixelSize: 24
                                                 font.bold: true
-                                                text: ": OK"
+                                                text: ": NOK"
                                             }
                                         }
                                     }
@@ -1330,12 +1564,12 @@ Item{
                                             Text {
                                                 Layout.fillWidth: true
                                                 horizontalAlignment: Text.AlignRight
-                                                color:"#32a852"
+                                                color: "red" //"#32a852"
                                                 padding: 2
                                                 rightPadding: 10
                                                 font.pixelSize: 24
                                                 font.bold: true
-                                                text: ": OK"
+                                                text: ": NOK"
                                             }
                                         }
                                     }

@@ -17,6 +17,7 @@ ApplicationWindow {
     visible: true
     title: qsTr("Klima Gövde-Kapak Kalite Sistemi")
     onClosing: function(){
+        backend.appIsClosing();
         return true;
     }
 

@@ -1,12 +1,13 @@
 import os
 from pathlib import Path
-from random import sample
 import sys
 import json
 from time import sleep
 from PySide2.QtCore import QObject, Slot, Signal
 from threading import Thread
 from src.data_models import *
+from src.hkThread import HekaThread
+from src.testManager import TestManager
 
 from numpy import true_divide
 
@@ -14,6 +15,9 @@ class BackendManager(QObject):
     def __init__(self):
         QObject.__init__(self)
         self.initDb()
+        self.testManager = TestManager(self)
+        self.runCommChecker = False
+        self.commChecker = None
 
 
     def initDb(self):
@@ -51,7 +55,98 @@ class BackendManager(QObject):
     getSettings = Signal(str)
     saveSettingsFinished = Signal(str)
 
-    #SLOTS
+    testStepError = Signal(str)
+    getStepResult = Signal(str)
+    getDeviceStatus = Signal(str)
+
+    getResetOk = Signal()
+    getMasterJobOk = Signal()
+    getServoOnOk = Signal()
+    getStartOk = Signal()
+
+    
+    # THR FUNCTIONS
+    def raiseStepError(self, msg):
+        self.testStepError.emit(msg)
+    
+    def raiseStepResult(self, result, msg):
+        msgObj = {
+            'Result': result,
+            'Message': msg,
+        }
+        self.getStepResult.emit(json.dumps(msgObj))
+    
+    def raiseResetOk(self):
+        self.getResetOk.emit()
+
+    def raiseMasterJobOk(self):
+        self.getMasterJobOk.emit()
+
+    def raiseServoOnOk(self):
+        self.getServoOnOk.emit()
+
+    def raiseStartOk(self):
+        self.getStartOk.emit()
+
+    def __stopListeners(self):
+        try:
+            if self.commChecker:
+                self.runCommChecker = False
+                self.commChecker.stop()
+        except:
+            pass
+
+    def __listenForCommCheck(self):
+        while self.runCommChecker:
+            try:
+                configData = getConfig()
+                if configData:
+                    self.testManager.initDevices(configData)
+
+                statusResult = {
+                    'Robot': False,
+                    'Camera': False,
+                }
+
+                statusResult["Robot"] = self.testManager.checkRobotIsAlive()
+                self.getDeviceStatus.emit(json.dumps(statusResult))
+
+                statusResult["Camera"] = self.testManager.checkCameraIsAlive()
+                self.getDeviceStatus.emit(json.dumps(statusResult))
+            except Exception as e:
+                print(e)
+                pass
+
+            sleep(5)
+
+
+    # COMM SLOTS
+    @Slot()
+    def startCommCheck(self):
+        self.runCommChecker = True
+        if not self.commChecker:
+            self.commChecker = HekaThread(target=self.__listenForCommCheck)
+            self.commChecker.start()
+
+
+    @Slot(int)
+    def resetTest(self, productId):
+        localWork = HekaThread(target=(lambda: self.__resetTest(productId)))
+        localWork.start()
+
+
+    def __resetTest(self, productId):
+        productData = getProduct(productId)
+        if productData:
+            self.testManager.startTest(productData)
+
+
+    # SLOTS
+    @Slot()
+    def appIsClosing(self):
+        self.__stopListeners()
+
+
     @Slot()
     def requestShowSettings(self):
         self.showSettings.emit()

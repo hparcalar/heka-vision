@@ -48,8 +48,14 @@ def getProduct(productId):
             
             if st['productCamRecipe']:
                 st['camRecipeId'] = int(st['productCamRecipe'])
+                rawRecipe = ProductCamRecipe.get(ProductCamRecipe.id == int(st['productCamRecipe']))
+                st['camRecipe'] = model_to_dict(rawRecipe, backrefs= True)
             else:
                 st['camRecipeId'] = None
+
+            st['liveStatus'] = False
+            st['liveResult'] = False
+            
         data['steps'] = list(listSteps)
 
     except Exception as e:
@@ -133,6 +139,7 @@ def saveOrUpdateProduct(model):
                 dbRecipe.rbFromScanningFinished = d['rbFromScanningFinished']
                 dbRecipe.rbToRecipeStarted = d['rbToRecipeStarted']
                 dbRecipe.rbToStartScanning = d['rbToStartScanning']
+                dbRecipe.startDelay = d['startDelay']
                 dbRecipe.orderNo = 0
                 dbRecipe.product = dbObj
                 dbRecipe.save()
@@ -476,6 +483,7 @@ class ProductCamRecipe(BaseModel):
     camResultByteIndex = IntegerField(null=True)
     orderNo = IntegerField()
     product = ForeignKeyField(Product, backref='camRecipes')
+    startDelay = IntegerField(null=True)
 
 
 class ProductSection(BaseModel):
