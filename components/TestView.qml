@@ -6,12 +6,17 @@ import QtQuick.Layouts 1.2
 import QtGraphicalEffects 1.0
 import QtQuick.Extras 1.4
 import QtQuick.Dialogs 1.1
+import "controls"
 
 Item{
     id: testViewFormContainer
 
     property string sectionList
     property int loginState: 0
+    property int runningStepId: -1
+    property bool robotStartPosArrived: false
+    property bool testRunning: false
+    property bool isFullByProduct: false
 
     property string silentCardNo: ""
     property date silentDate: new Date()
@@ -44,9 +49,15 @@ Item{
     // ON LOAD EVENT
     Component.onCompleted: function(){
         requestProduct();
-        requestState();
+        requestLiveStats();
+
         popupCardRead.open();
+
+        backend.initDevices();
         backend.startCommCheck();
+        backend.startProductSensorCheck();
+
+        btnReset.enabled = false;
     }
 
     function drawParts(){
@@ -60,8 +71,7 @@ Item{
 
                 cmpPartCategory.createObject(partsContainer, {
                         partName: partObj.sectionName,
-                        partImageLeft: null,
-                        partImageRight: null,
+                        images: partObj.images && partObj.images.length > 0 ? partObj.images : ['../assets/empty_image.png'],
                     });
             }
         }
@@ -80,7 +90,8 @@ Item{
                     controlSection: st.testName,
                     controlStatus: st.liveStatus,
                     controlResult: st.liveResult,
-                    faultCount: 0,
+                    isRunning: st.id == runningStepId,
+                    faultCount: st.faultCount ?? 0,
                 });
             });
         }
@@ -88,10 +99,6 @@ Item{
 
     function openSettings(){
         popupAuth.open();
-    }
-
-    function requestState(){
-        backend.requestState();
     }
 
     function requestProduct(){
@@ -133,6 +140,7 @@ Item{
                     sectionHeight: 1,
                     sectionName: '',
                     isShallow: true,
+                    isRunning: false,
                 });
             }
 
@@ -146,6 +154,7 @@ Item{
                         sectionHeight: d.sectionHeight,
                         sectionName: d.sectionName,
                         isShallow: false,
+                        isRunning: activeProduct.steps.some(m => m.id == runningStepId && m.sectionId == d.id)
                     };
                     gridArr = clearIntersectedAreas(gridArr, blockObj);
                     gridArr.push(blockObj);
@@ -224,8 +233,73 @@ Item{
             return;
         }
 
+        testRunning = true;
+        robotStartPosArrived = false;
+
+        // clear current active results
+        try {
+            if (activeProduct.steps != null && activeProduct.steps.length > 0)
+                runningStepId = activeProduct.steps[0].id;
+            else
+                runningStepId = -1;
+
+            activeProduct.steps.forEach(d => {
+                d.liveStatus = false;
+                d.liveResult = false;
+            });
+
+            bindTestSteps();
+            bindGridSchema();
+        } catch (error) {
+            
+        }
+
         btnReset.enabled = false;
         backend.resetTest(activeProduct.id);
+    }
+
+    function setRobotHold(){
+        testRunning = false;
+
+        backend.setRobotHold();
+        btnReset.enabled = true;
+        btnMasterJobCall.enabled = false;
+        btnServoOn.enabled = false;
+        btnStart.enabled = false;
+    }
+
+    function requestLiveStats(){
+        let prId = null;
+        let shId = null;
+
+        if (activeProduct && activeProduct.id > 0)
+            prId = activeProduct.id;
+        else
+            prId = 0;
+        
+        if (activeShift && activeShift.id > 0)
+            shId = activeShift.id;
+        else
+            shId = 0;
+
+        if (shId > 0){
+            backend.requestLiveStatus(prId, shId);
+        }
+    }
+
+    function saveTestResult(testResult){
+        if (activeProduct != null && activeProduct.id > 0){
+            const foundStep = activeProduct.steps.find(d => d.id == runningStepId);
+
+            backend.saveTestResult(JSON.stringify({
+                productId: activeProduct.id,
+                sectionId: foundStep ? foundStep.sectionId : null,
+                stepId: foundStep ? foundStep.id : null,
+                shiftId: activeShift && activeShift.id > 0 ? activeShift.id : null,
+                employeeId: activeEmployee && activeEmployee.id > 0 ? activeEmployee.id : null,
+                isOk: testResult,
+            }));
+        }
     }
 
     // BACKEND SIGNALS & SLOTS
@@ -253,6 +327,7 @@ Item{
         function onShiftSelected(data){
             activeShift = JSON.parse(data);
             bindShift();
+            requestLiveStats();
         }
 
         function onProductSelected(data){
@@ -261,6 +336,7 @@ Item{
                 activeProduct.sections = activeProduct.sections.sort((a,b) => a.orderNo - b.orderNo);
 
             bindProduct();
+            requestLiveStats();
         }
 
         function onEmployeeCardRead(data){
@@ -331,10 +407,12 @@ Item{
 
             errorDialog.text = data;
             errorDialog.visible = true;
+            testRunning = false;
         }
 
         function onGetStepResult(data){
-            stepRes = JSON.parse(data);
+            robotStartPosArrived = false;
+            var stepRes = JSON.parse(data);
             if (stepRes){
                 const stepId = parseInt(stepRes.Message);
                 const foundStep = activeProduct.steps.find(d => d.id == stepId);
@@ -342,9 +420,71 @@ Item{
                     foundStep.liveStatus = true;
                     foundStep.liveResult = stepRes.Result;
 
+                    // save fault step result before reset
+                    if (stepRes.Result == false){
+                        saveTestResult(false);
+                        testRunning = false;
+                    }
+
+                    const foundStepIndex = activeProduct.steps.indexOf(foundStep);
+                    const nextStep = activeProduct.steps.length > (foundStepIndex + 1) ?
+                        activeProduct.steps[foundStepIndex + 1] : null;
+                    if (nextStep){
+                        runningStepId = nextStep.id;
+                    }
+                    else
+                        runningStepId = -1;
+
+                    bindTestSteps();
+                    bindGridSchema();
+                }
+            }
+        }
+
+        function onGetAllStepsFinished(){
+            saveTestResult(true);
+            btnReset.enabled = true;
+            btnMasterJobCall.enabled = false;
+            btnServoOn.enabled = false;
+            btnStart.enabled = false;
+            robotStartPosArrived = false;
+            testRunning = false;
+        }
+
+        function onTestResultSaved(data){
+            requestLiveStats();
+        }
+
+        function onGetLiveStatus(data){
+            const dataObj = JSON.parse(data);
+            if (dataObj){
+                txtTotalTestCount.text = ': ' + dataObj.Live.totalCount.toString();
+                txtTotalFaultCount.text = ': ' + dataObj.Live.faultCount.toString();
+
+                if (dataObj.Steps){
+                    dataObj.Steps.forEach(d => {
+                        const foundStep = activeProduct.steps.find(m => m.id == d.id);
+                        if (foundStep){
+                            foundStep.faultCount = d.faultCount;
+                        }
+                    });
+
                     bindTestSteps();
                 }
             }
+        }
+
+        function onGetStartPosArrived(){
+            robotStartPosArrived = true;
+        }
+
+        function onGetProductSensor(isFull){
+            isFullByProduct = isFull;
+            btnReset.enabled = isFullByProduct;
+        }
+
+        function onGetNewImageResult(fullImagePath){
+            console.log(fullImagePath);
         }
     }
 
@@ -767,23 +907,22 @@ Item{
 
         Rectangle{
             property string partName
-            property string partImageLeft
-            property string partImageRight
+            property var images
 
             color:"transparent"
             Layout.fillWidth: true
-            Layout.preferredHeight: parent.height / 5 - 20
+            Layout.fillHeight: true
             Layout.alignment: Qt.AlignTop
 
             ColumnLayout {
                 anchors.fill: parent
+                spacing:0
 
                 // PART NAME
                 Rectangle{
                     Layout.fillWidth: true
                     Layout.preferredHeight: parent.height / 3 - 20
                     color: "#326195"
-                    radius:5
 
                     Text {
                         width: parent.width
@@ -792,7 +931,10 @@ Item{
                         verticalAlignment: Text.AlignVCenter
                         color:"#FFFFFF"
                         padding: 3
-                        font.pixelSize: 18
+                        // font.pixelSize: 18
+                        minimumPointSize: 5
+                        font.pointSize: 14
+                        fontSizeMode: Text.Fit
                         font.bold: true
                         text: partName
                     }
@@ -802,27 +944,21 @@ Item{
                 Rectangle{
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    color: "transparent"
+                    color: "black"
 
                     RowLayout{
                         anchors.fill: parent
 
-                        Image {
-                            Layout.fillHeight: true
-                            Layout.preferredWidth: parent.width / 2
-                            sourceSize.width: parent.width / 2
-                            sourceSize.height: parent.height
-                            fillMode: Image.PreserveAspectFit
-                            source: partImageLeft
-                        }
+                        Repeater{
+                            model: images
 
-                        Image {
-                            Layout.fillHeight: true
-                            Layout.preferredWidth: parent.width / 2
-                            sourceSize.width: parent.width / 2
-                            sourceSize.height: parent.height
-                            fillMode: Image.PreserveAspectFit
-                            source: partImageRight
+                            Image {
+                                Layout.fillHeight: true
+                                Layout.fillWidth: true
+                                sourceSize.height: parent.height
+                                fillMode: Image.PreserveAspectFit
+                                source: modelData
+                            }
                         }
                     }
                 }
@@ -837,6 +973,7 @@ Item{
             property string controlSection: ""
             property bool controlStatus: false
             property bool controlResult: false
+            property bool isRunning: false
             property int faultCount: 0
 
             Layout.fillWidth: true
@@ -853,7 +990,7 @@ Item{
                     start: Qt.point(0, 0)
                     end: Qt.point(width, 0)
                     gradient: Gradient {
-                        GradientStop { position: 0.0; color: "#326195" }
+                        GradientStop { position: 0.0; color: isRunning ? "#4cdb2c" : "#326195" }
                         GradientStop { position: 1.0; color: "#c8cacc" }
                     }
 
@@ -865,7 +1002,9 @@ Item{
                         color:"#fff"
                         padding: 2
                         leftPadding: 10
-                        font.pixelSize: 16
+                        minimumPointSize: 5
+                        font.pointSize: 14
+                        fontSizeMode: Text.Fit
                         font.bold: true
                         text: controlSection
                     }
@@ -898,13 +1037,21 @@ Item{
                         verticalAlignment: Text.AlignVCenter
                         color:"#333"
                         padding: 2
-                        font.pixelSize: 16
+                        minimumPointSize: 5
+                        font.pointSize: 14
+                        fontSizeMode: Text.Fit
                         font.bold: false
                         text: faultCount.toString()
                     }
                 }
             }
         }
+    }
+
+    Gradient {
+        id: gradientProduct
+        GradientStop { position: 0.0; color: "#9dd2fa" }
+        GradientStop { position: 1.0; color: "#326195" }
     }
 
     // VIEW LAYOUT
@@ -921,6 +1068,7 @@ Item{
                 Layout.preferredWidth: parent.width / 3
                 Layout.fillHeight: true
                 Layout.leftMargin: 5
+                Layout.bottomMargin: 5
                 color: "transparent"
 
                 ColumnLayout{
@@ -934,7 +1082,7 @@ Item{
             Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                Layout.leftMargin: 50
+                Layout.leftMargin: 5
                 Layout.rightMargin: 5
                 color: "transparent"
 
@@ -1069,6 +1217,7 @@ Item{
                                 RowLayout{
                                     anchors.fill: parent
 
+                                    // ROBOT PROCESS BUTTONS
                                     Rectangle{
                                         Layout.preferredWidth: parent.width * 0.7
                                         Layout.fillHeight: true
@@ -1094,7 +1243,7 @@ Item{
                                                     fontSizeMode: Text.Fit
                                                     horizontalAlignment: Text.AlignHCenter
                                                     verticalAlignment: Text.AlignVCenter
-                                                    text: "RESET"
+                                                    text: "START"
                                                 }
                                                 palette.buttonText: "#333"
                                                 background: Rectangle {
@@ -1181,7 +1330,7 @@ Item{
                                                     fontSizeMode: Text.Fit
                                                     horizontalAlignment: Text.AlignHCenter
                                                     verticalAlignment: Text.AlignVCenter
-                                                    text: "START"
+                                                    text: "RUN"
                                                 }
                                                 palette.buttonText: "#333"
                                                 background: Rectangle {
@@ -1196,51 +1345,102 @@ Item{
                                         }
                                     }
 
+                                    // HOLD AND SETTINGS BUTTON
                                     Rectangle{
                                         Layout.fillWidth: true
                                         Layout.fillHeight: true
                                         color: "transparent"
 
-                                        Button{
-                                            text: "Ayarlar"
+                                        ColumnLayout{
                                             anchors.fill: parent
-                                            onClicked: openSettings()
-                                            Layout.alignment: Qt.AlignRight | Qt.AlignTop
-                                            id:btnSettings
-                                            // font.pixelSize: 18
-                                            // font.bold: true
-                                            padding: 10
-                                            contentItem:Label{
-                                                anchors.fill: parent
-                                                anchors.topMargin: 40
-                                                minimumPointSize: 5
-                                                font.pointSize: 16
-                                                font.bold: false
-                                                fontSizeMode: Text.Fit
-                                                horizontalAlignment: Text.AlignHCenter
-                                                verticalAlignment: Text.AlignVCenter
-                                                text: "AYARLAR"
-                                            }
-                                            palette.buttonText: "#333"
-                                            background: Rectangle {
-                                                border.width: btnSettings.activeFocus ? 2 : 1
-                                                border.color: "#333"
-                                                radius: 4
-                                                gradient: Gradient {
-                                                    GradientStop { position: 0 ; color: btnSettings.pressed ? "#AAA" : "#dedede" }
-                                                    GradientStop { position: 1 ; color: btnSettings.pressed ? "#dedede" : "#AAA" }
+                                            spacing: 2
+
+                                            Button{
+                                                text: "Ayarlar"
+                                                Layout.fillWidth: true
+                                                Layout.preferredHeight: parent.height * 0.5
+                                                onClicked: openSettings()
+                                                Layout.alignment: Qt.AlignRight | Qt.AlignTop
+                                                id:btnSettings
+                                                // font.pixelSize: 18
+                                                // font.bold: true
+                                                padding: 10
+                                                contentItem:Label{
+                                                    anchors.fill: parent
+                                                    anchors.topMargin: 35
+                                                    minimumPointSize: 5
+                                                    font.pointSize: 14
+                                                    font.bold: false
+                                                    fontSizeMode: Text.Fit
+                                                    horizontalAlignment: Text.AlignHCenter
+                                                    verticalAlignment: Text.AlignVCenter
+                                                    text: "AYARLAR"
+                                                }
+                                                palette.buttonText: "#333"
+                                                background: Rectangle {
+                                                    border.width: btnSettings.activeFocus ? 2 : 1
+                                                    border.color: "#333"
+                                                    radius: 4
+                                                    gradient: Gradient {
+                                                        GradientStop { position: 0 ; color: btnSettings.pressed ? "#AAA" : "#dedede" }
+                                                        GradientStop { position: 1 ; color: btnSettings.pressed ? "#dedede" : "#AAA" }
+                                                    }
+                                                }
+
+                                                Image {
+                                                    anchors.top: btnSettings.top
+                                                    anchors.left: btnSettings.left
+                                                    anchors.topMargin: btnSettings.height * 0.5 - 25
+                                                    anchors.leftMargin: btnSettings.width * 0.5 - 15
+                                                    sourceSize.width: 40
+                                                    sourceSize.height: 25
+                                                    fillMode: Image.Stretch
+                                                    source: "../assets/settings.png"
                                                 }
                                             }
 
-                                            Image {
-                                                anchors.top: btnSettings.top
-                                                anchors.left: btnSettings.left
-                                                anchors.topMargin: btnSettings.height * 0.5 - 30
-                                                anchors.leftMargin: btnSettings.width * 0.5 - 15
-                                                sourceSize.width: 50
-                                                sourceSize.height: 30
-                                                fillMode: Image.Stretch
-                                                source: "../assets/settings.png"
+                                            Button{
+                                                text: ""
+                                                Layout.fillWidth: true
+                                                Layout.fillHeight: true
+                                                id: btnEmgStop
+                                                onClicked: function(){
+                                                    setRobotHold();
+                                                }
+                                                enabled: true
+                                                Layout.alignment: Qt.AlignRight | Qt.AlignTop
+                                                padding: 10
+                                                contentItem:Label{
+                                                    anchors.fill: parent
+                                                    anchors.topMargin: 30
+                                                    minimumPointSize: 5
+                                                    font.pointSize: 14
+                                                    font.bold: false
+                                                    fontSizeMode: Text.Fit
+                                                    horizontalAlignment: Text.AlignHCenter
+                                                    verticalAlignment: Text.AlignVCenter
+                                                    text: "STOP"
+                                                }
+                                                palette.buttonText: "#fff"
+                                                background: Rectangle {
+                                                    border.width: btnEmgStop.activeFocus ? 2 : 1
+                                                    border.color: "#333"
+                                                    gradient: Gradient {
+                                                        GradientStop { position: 0 ; color: btnEmgStop.enabled ? (btnEmgStop.pressed ? "red" : "#dedede") : "#666" }
+                                                        GradientStop { position: 1 ; color: btnEmgStop.enabled ? (btnEmgStop.pressed ? "#dedede" : "red") : "#999" }
+                                                    }
+                                                }
+
+                                                Image {
+                                                    anchors.top: btnEmgStop.top
+                                                    anchors.left: btnEmgStop.left
+                                                    anchors.topMargin: btnEmgStop.height * 0.5 - 30
+                                                    anchors.leftMargin: btnEmgStop.width * 0.5 - 20
+                                                    sourceSize.width: 50
+                                                    sourceSize.height: 35
+                                                    fillMode: Image.Stretch
+                                                    source: "../assets/stop.png"
+                                                }
                                             }
                                         }
                                     }
@@ -1252,9 +1452,12 @@ Item{
                     // SECOND ROW (PRODUCT IMAGE)
                     Rectangle{
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 200
+                        Layout.preferredHeight: 150
                         Layout.alignment: Qt.AlignTop
-                        color: "transparent"
+                        color: isFullByProduct == true ? "#804cdb2c" : "transparent"
+                        border.width: 1
+                        border.color: "transparent"
+                        radius:5
 
                         // PRODUCT SECTIONS GRID PANEL
                         GridLayout {
@@ -1266,9 +1469,10 @@ Item{
 
                             Repeater{
                                 id: rptGridProduct
-                                
+
                                 Rectangle{
-                                    color: modelData.isShallow ? "transparent" : "#9dd2fa"
+                                    id: rectCmp
+                                    color: modelData.isShallow ? "transparent" : "#2396d9"
                                     border.width: modelData.isShallow ? 0 : 1
                                     border.color: "#326195"
                                     radius: 5
@@ -1280,17 +1484,60 @@ Item{
                                     Layout.preferredHeight: parent.height / gridProduct.rows * modelData.sectionHeight
                                     layer.enabled: true
                                     layer.effect: DropShadow {
-                                        // anchors.fill: butterfly
                                         horizontalOffset: 3
                                         verticalOffset: 3
                                         radius: 8.0
                                         samples: 17
                                         color: "#80000000"
-                                        // source: butterfly
                                     }
-                                    gradient: Gradient {
-                                        GradientStop { position: 0.0; color: "#9dd2fa" }
-                                        GradientStop { position: 1.0; color: "#326195" }
+                                    gradient: modelData.isRunning == false ? gradientProduct : null
+
+                                    // SELECTED SECTION COLOR ANIMATION
+                                    ColorAnimation on color { id: animColor; 
+                                        running: modelData.isRunning && modelData.isRunning == true; to: "#4cdb2c"; duration: 500;
+                                        onFinished: function(){
+                                            animColor.to = animColor.to == '#4cdb2c' ? '#2396d9' : '#4cdb2c';
+                                            animColor.start();
+                                        }
+                                     }
+
+                                    // LINE SCAN ANIMATION
+                                    Rectangle{
+                                        visible: modelData.isRunning == true
+                                        anchors.top: parent.top
+                                        anchors.bottom: parent.bottom
+                                        anchors.left : parent.left
+                                        width: 2
+                                        color: "#efefef"
+                                        border.width: 1
+                                        border.color: "#ffffff"
+                                        layer.enabled: true
+                                        layer.effect: DropShadow {
+                                            horizontalOffset: 0
+                                            verticalOffset: 0
+                                            radius: 0.0
+                                            spread: 5
+                                            samples: 17
+                                            color: "#80ffffff"
+                                        }
+
+                                        Component.onCompleted: function(){
+                                            animLine.to = 225 * modelData.sectionWidth - 15;
+                                            animLine.start();
+                                        }
+
+                                        NumberAnimation on anchors.leftMargin { 
+                                            id: animLine
+                                            running: false
+                                            from: 0
+                                            
+                                            duration: 1000
+                                            onFinished: function(){
+                                                animLine.from = animLine.from == (225 * modelData.sectionWidth - 15) ? 0 : (225 * modelData.sectionWidth - 15);
+                                                animLine.to = animLine.to == (225 * modelData.sectionWidth - 15) ? 0 : (225 * modelData.sectionWidth - 15);
+                                                animLine.start();
+                                            }
+                                        }
                                     }
 
                                     MouseArea{
@@ -1334,8 +1581,8 @@ Item{
                             // TABLE HEADER
                             Rectangle{
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: 50
-                                color: "#dfdfdf"
+                                Layout.preferredHeight: 40
+                                color: "#333333"
                                 border.color: "#888"
                                 border.width: 1
 
@@ -1353,11 +1600,13 @@ Item{
                                             height: parent.height
                                             horizontalAlignment: Text.AlignLeft
                                             verticalAlignment: Text.AlignVCenter
-                                            color:"#333"
+                                            color:"#efefef"
                                             padding: 2
                                             leftPadding: 10
-                                            font.pixelSize: 18
-                                            font.underline: true
+                                            minimumPointSize: 5
+                                            font.pointSize: 16
+                                            fontSizeMode: Text.Fit
+                                            // font.underline: true
                                             font.bold: true
                                             text: "Kontrol Bölgesi"
                                         }
@@ -1373,10 +1622,12 @@ Item{
                                             height: parent.height
                                             horizontalAlignment: Text.AlignHCenter
                                             verticalAlignment: Text.AlignVCenter
-                                            color:"#333"
+                                            color:"#efefef"
                                             padding: 2
-                                            font.pixelSize: 18
-                                            font.underline: true
+                                            minimumPointSize: 5
+                                            font.pointSize: 16
+                                            fontSizeMode: Text.Fit
+                                            // font.underline: true
                                             font.bold: true
                                             text: "Durum"
                                         }
@@ -1392,10 +1643,12 @@ Item{
                                             height: parent.height
                                             horizontalAlignment: Text.AlignHCenter
                                             verticalAlignment: Text.AlignVCenter
-                                            color:"#333"
+                                            color:"#efefef"
                                             padding: 2
-                                            font.pixelSize: 18
-                                            font.underline: true
+                                            minimumPointSize: 5
+                                            font.pointSize: 16
+                                            fontSizeMode: Text.Fit
+                                            // font.underline: true
                                             font.bold: true
                                             text: "Toplam Hata"
                                         }
@@ -1418,10 +1671,10 @@ Item{
                         }
                     }
 
-                    // FOURTH ROW (NETWORK STATS)
+                    // FOURTH ROW (NETWORK STATS & LIVE TEST RESULT STATUS)
                     Rectangle{
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 200
+                        Layout.preferredHeight: 120
                         Layout.alignment: Qt.AlignBottom
                         Layout.bottomMargin: 5
 
@@ -1430,6 +1683,7 @@ Item{
                         RowLayout{
                             anchors.fill: parent
                             
+                            // NETWORK STATS
                             Rectangle{
                                 Layout.preferredWidth: parent.width * 0.4
                                 Layout.fillHeight: true
@@ -1439,6 +1693,7 @@ Item{
 
                                 ColumnLayout{
                                     anchors.fill: parent
+                                    spacing: 0
 
                                     // ROBOT COMM INFO
                                     Rectangle{
@@ -1455,7 +1710,10 @@ Item{
                                                 color:"#326195"
                                                 padding: 2
                                                 leftPadding: 10
-                                                font.pixelSize: 24
+                                                // font.pixelSize: 24
+                                                minimumPointSize: 5
+                                                font.pointSize: 14
+                                                fontSizeMode: Text.Fit
                                                 font.bold: true
                                                 text: "Robot Haberleşme"
                                             }
@@ -1467,7 +1725,9 @@ Item{
                                                 color:"#32a852"
                                                 padding: 2
                                                 rightPadding: 10
-                                                font.pixelSize: 24
+                                                minimumPointSize: 5
+                                                font.pointSize: 14
+                                                fontSizeMode: Text.Fit
                                                 font.bold: true
                                                 text: ""
                                             }
@@ -1489,7 +1749,9 @@ Item{
                                                 color:"#326195"
                                                 padding: 2
                                                 leftPadding: 10
-                                                font.pixelSize: 24
+                                                minimumPointSize: 5
+                                                font.pointSize: 14
+                                                fontSizeMode: Text.Fit
                                                 font.bold: true
                                                 text: "Kamera Haberleşme"
                                             }
@@ -1501,7 +1763,9 @@ Item{
                                                 color:"#32a852"
                                                 padding: 2
                                                 rightPadding: 10
-                                                font.pixelSize: 24
+                                                minimumPointSize: 5
+                                                font.pointSize: 14
+                                                fontSizeMode: Text.Fit
                                                 font.bold: true
                                                 text: ""
                                             }
@@ -1523,7 +1787,9 @@ Item{
                                                 color:"#326195"
                                                 padding: 2
                                                 leftPadding: 10
-                                                font.pixelSize: 24
+                                                minimumPointSize: 5
+                                                font.pointSize: 14
+                                                fontSizeMode: Text.Fit
                                                 font.bold: true
                                                 text: "Acil Devresi"
                                             }
@@ -1534,7 +1800,9 @@ Item{
                                                 color: "red" //"#32a852"
                                                 padding: 2
                                                 rightPadding: 10
-                                                font.pixelSize: 24
+                                                minimumPointSize: 5
+                                                font.pointSize: 14
+                                                fontSizeMode: Text.Fit
                                                 font.bold: true
                                                 text: ": NOK"
                                             }
@@ -1556,7 +1824,9 @@ Item{
                                                 color:"#326195"
                                                 padding: 2
                                                 leftPadding: 10
-                                                font.pixelSize: 24
+                                                minimumPointSize: 5
+                                                font.pointSize: 14
+                                                fontSizeMode: Text.Fit
                                                 font.bold: true
                                                 text: "Yazıcı"
                                             }
@@ -1567,7 +1837,9 @@ Item{
                                                 color: "red" //"#32a852"
                                                 padding: 2
                                                 rightPadding: 10
-                                                font.pixelSize: 24
+                                                minimumPointSize: 5
+                                                font.pointSize: 14
+                                                fontSizeMode: Text.Fit
                                                 font.bold: true
                                                 text: ": NOK"
                                             }
@@ -1576,16 +1848,24 @@ Item{
                                 }
                             }
 
+                            // LIVE RESULT STATUS INFO
                             Rectangle{
-                                Layout.fillWidth: true
+                                // Layout.fillWidth: true
+                                Layout.preferredWidth: parent.width * 0.4
                                 Layout.fillHeight: true
                                 color: "#dfdfdf"
                                 border.color: "#888"
                                 border.width: 1
 
+                                gradient: Gradient {
+                                    GradientStop { position: 0.0; color: "#9dd2fa" }
+                                    GradientStop { position: 1.0; color: "#326195" }
+                                }
+
                                 RowLayout{
                                     anchors.fill: parent
 
+                                    // TEST STATUS COUNTS
                                     Rectangle{
                                         Layout.preferredWidth: parent.width / 2
                                         Layout.fillHeight: true
@@ -1613,23 +1893,28 @@ Item{
                                                     Text {
                                                         Layout.preferredWidth: parent.width * 0.6
                                                         horizontalAlignment: Text.AlignLeft
-                                                        color:"#326195"
+                                                        color:"#333"
                                                         padding: 2
                                                         leftPadding: 10
-                                                        font.pixelSize: 24
+                                                        minimumPointSize: 5
+                                                        font.pointSize: 14
+                                                        fontSizeMode: Text.Fit
                                                         font.bold: true
                                                         text: "Toplam Test"
                                                     }
 
                                                     Text {
+                                                        id: txtTotalTestCount
                                                         Layout.preferredWidth: parent.width * 0.4
                                                         horizontalAlignment: Text.AlignLeft
                                                         color:"#333"
                                                         padding: 2
                                                         leftPadding: 10
-                                                        font.pixelSize: 24
+                                                        minimumPointSize: 5
+                                                        font.pointSize: 14
+                                                        fontSizeMode: Text.Fit
                                                         font.bold: true
-                                                        text: ": 1300"
+                                                        text: ": "
                                                     }
                                                 }
                                             }           
@@ -1648,23 +1933,28 @@ Item{
                                                     Text {
                                                         Layout.preferredWidth: parent.width * 0.6
                                                         horizontalAlignment: Text.AlignLeft
-                                                        color:"#326195"
+                                                        color:"#333"
                                                         padding: 2
                                                         leftPadding: 10
-                                                        font.pixelSize: 24
+                                                        minimumPointSize: 5
+                                                        font.pointSize: 14
+                                                        fontSizeMode: Text.Fit
                                                         font.bold: true
                                                         text: "Hatalı Adet"
                                                     }
 
                                                     Text {
+                                                        id: txtTotalFaultCount
                                                         Layout.preferredWidth: parent.width * 0.4
                                                         horizontalAlignment: Text.AlignLeft
                                                         color:"#c70c12"
                                                         padding: 2
                                                         leftPadding: 10
-                                                        font.pixelSize: 24
+                                                        minimumPointSize: 5
+                                                        font.pointSize: 14
+                                                        fontSizeMode: Text.Fit
                                                         font.bold: true
-                                                        text: ": 10"
+                                                        text: ": "
                                                     }
                                                 }
                                             }
@@ -1676,100 +1966,103 @@ Item{
                                         Layout.fillWidth: true
                                         Layout.fillHeight: true
                                         color: "transparent"
-                                        // Layout.topMargin: 20
 
-                                        // CircularGauge {
-                                        //     anchors.fill: parent
-                                        //     style: CircularGaugeStyle {
-                                        //         needle: Rectangle {
-                                        //             y: outerRadius * 0.15
-                                        //             implicitWidth: outerRadius * 0.03
-                                        //             implicitHeight: outerRadius * 0.9
-                                        //             antialiasing: true
-                                        //             color: "#326195" //Qt.rgba(0.66, 0.3, 0, 1)
-                                        //         }
-                                        //         tickmark: Text {
-                                        //             text: styleData.value
-
-                                        //             Text {
-                                        //                 anchors.horizontalCenter: parent.horizontalCenter
-                                        //                 anchors.top: parent.bottom
-                                        //                 text: styleData.index
-                                        //                 color: "blue"
-                                        //             }
-                                        //         }
-                                        //     }
-                                        // }
-
-                                        Gauge {
-                                            id: oeeBar
+                                        CircularSlider {
+                                            id: oeeSlider
                                             anchors.fill: parent
-                                            orientation: Qt.Horizontal
-                                            anchors.margins: 10
+                                            anchors.topMargin: 5
+                                            value: 0
+                                            startAngle: 40
+                                            endAngle: 320
+                                            rotation: 180
+                                            trackWidth: 20
+                                            progressWidth: 10
+                                            minValue: 0
+                                            maxValue: 100
+                                            progressColor: "#1cad15"
+                                            trackColor: "#333"
+                                            capStyle: Qt.FlatCap
 
-                                            value: 85
                                             Behavior on value {
                                                 NumberAnimation {
-                                                    duration: 1000
+                                                    duration: 500
                                                 }
                                             }
 
-                                            style: GaugeStyle {
-                                                valueBar: Rectangle {
-                                                    implicitWidth: 50
-                                                    color: "#326195"
-
-                                                    Text{
-                                                        anchors.bottom: parent.bottom
-                                                        anchors.left: parent.left
-                                                        anchors.leftMargin: 15
-                                                        color: "white"
-                                                        text: "OEE: " + oeeBar.value + "%"
-                                                        font.bold: true
-                                                        transform: Rotation { origin.x: 0; origin.y: 0; angle: -90}
-                                                    }
-                                                }
-                                                background: Rectangle{
-                                                    anchors.fill: parent
-                                                    color: "#555"
-                                                }
-                                                minorTickmark: Item {
-                                                    implicitWidth: 8
-                                                    implicitHeight: 1
-
-                                                    Rectangle {
-                                                        color: "#333"
-                                                        anchors.fill: parent
-                                                        anchors.leftMargin: 2
-                                                        anchors.rightMargin: 4
-                                                    }
+                                            handle: Rectangle {
+                                                transform: Translate {
+                                                    x: (oeeSlider.handleWidth - width) / 2
+                                                    y: oeeSlider.handleHeight / 2
                                                 }
 
-                                                tickmarkLabel: Text {
-                                                    text: styleData.value
-
-                                                    Text {
-                                                        anchors.horizontalCenter: parent.horizontalCenter
-                                                        anchors.top: parent.bottom
-                                                        //text: styleData.index
-                                                        color: "blue"
-                                                    }
+                                                width: 3
+                                                height: oeeSlider.height / 2
+                                                color: "black"
+                                                radius: width / 2
+                                                antialiasing: true
+                                                layer.enabled: true
+                                                layer.effect: DropShadow {
+                                                    horizontalOffset: 3
+                                                    verticalOffset: 3
+                                                    radius: 8.0
+                                                    samples: 17
+                                                    color: "#80000000"
                                                 }
 
-                                                tickmark: Item {
-                                                    implicitWidth: 18
-                                                    implicitHeight: 1
-
-                                                    Rectangle {
-                                                        color: "#333"
-                                                        anchors.fill: parent
-                                                        anchors.leftMargin: 3
-                                                        anchors.rightMargin: 3
-                                                    }
+                                                gradient: Gradient {
+                                                    GradientStop { position: 0.0; color: "#9dd2fa" }
+                                                    GradientStop { position: 1.0; color: "#326195" }
                                                 }
                                             }
-                                        }
+
+                                            Label {
+                                                anchors.centerIn: parent
+                                                anchors.verticalCenterOffset: 20
+                                                rotation: 180
+                                                font.pointSize: 12
+                                                color: "#333"
+                                                // style: Text.Outline
+                                                // styleColor:'#000'
+                                                text: 'OEE'
+                                            }
+
+                                            Label {
+                                                anchors.centerIn: parent
+                                                anchors.verticalCenterOffset: -40
+                                                rotation: 180
+                                                // font.pointSize: 20
+                                                minimumPointSize: 5
+                                                font.pointSize: 16
+                                                fontSizeMode: Text.Fit
+                                                color: "#fff"
+                                                style: Text.Outline
+                                                styleColor:'#333'
+                                                text: '%' + Number(oeeSlider.value).toFixed()
+                                            }
+                                        }                                     
                                     }
+                                }
+                            }
+
+                            // LIVE TEST STATUS (IN PROGRESS)
+                            Rectangle{
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+
+                                border.color: "#888"
+                                border.width: 1
+
+                                gradient: Gradient {
+                                    GradientStop { position: 0 ; color: "#dedede" }
+                                    GradientStop { position: 1 ; color: "#AAA" }
+                                }
+
+                                Image {
+                                    anchors.fill: parent
+                                    anchors.margins: 5
+                                    sourceSize.height: parent.height
+                                    fillMode: Image.PreserveAspectFit
+                                    source: '../assets/waiting_test.png'
                                 }
                             }
                         }

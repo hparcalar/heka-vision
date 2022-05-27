@@ -8,23 +8,33 @@ from threading import Thread
 from src.data_models import *
 from src.hkThread import HekaThread
 from src.testManager import TestManager
+from src.dirManager import DirManager
 
-from numpy import true_divide
 
 class BackendManager(QObject):
     def __init__(self):
         QObject.__init__(self)
         self.initDb()
         self.testManager = TestManager(self)
+        self.dirManager = DirManager(self)
+        
         self.runCommChecker = False
         self.commChecker = None
+
+        self.runSensorChecker = False
+        self.sensorChecker = None
+
+        # test case for dir manager
+        self.dirManager.setDirectories(['/home/hakan/FtpContent/VisionDB/XG-X00DEMO_00_01_FC_C2_9C_82/SD1/0002/Image',
+            '/home/hakan/FtpContent/VisionDB/XG-X00DEMO_00_01_FC_C2_9C_82/SD1/0003/Image'])
+        self.dirManager.startListeners()
 
 
     def initDb(self):
         create_tables()
 
 
-    #SIGNALS
+    # region SIGNALS
     showSettings = Signal()
     showTestView = Signal()
     getSections = Signal(str)
@@ -63,9 +73,16 @@ class BackendManager(QObject):
     getMasterJobOk = Signal()
     getServoOnOk = Signal()
     getStartOk = Signal()
+    getAllStepsFinished = Signal()
 
+    testResultSaved = Signal(str)
+    getLiveStatus = Signal(str)
+    getStartPosArrived = Signal()
+    getProductSensor = Signal(bool)
+    getNewImageResult = Signal(str)
+    # endregion
     
-    # THR FUNCTIONS
+    # region THR FUNCTIONS
     def raiseStepError(self, msg):
         self.testStepError.emit(msg)
     
@@ -88,30 +105,43 @@ class BackendManager(QObject):
     def raiseStartOk(self):
         self.getStartOk.emit()
 
+    def raiseAllStepsFinished(self):
+        self.getAllStepsFinished.emit()
+
+    def raiseStartPosArrived(self):
+        self.getStartPosArrived.emit()
+
+    def raiseNewImageResult(self, recipeDirectory, fullImagePath):
+        if fullImagePath and len(fullImagePath) > 0:
+            self.getNewImageResult.emit(fullImagePath)
+
     def __stopListeners(self):
         try:
+            if self.dirManager:
+                self.dirManager.stopListeners()
+
             if self.commChecker:
                 self.runCommChecker = False
                 self.commChecker.stop()
+            
+            if self.sensorChecker:
+                self.runSensorChecker = False
+                self.sensorChecker.stop()
         except:
             pass
+
 
     def __listenForCommCheck(self):
         while self.runCommChecker:
             try:
-                configData = getConfig()
-                if configData:
-                    self.testManager.initDevices(configData)
-
                 statusResult = {
                     'Robot': False,
                     'Camera': False,
                 }
 
                 statusResult["Robot"] = self.testManager.checkRobotIsAlive()
-                self.getDeviceStatus.emit(json.dumps(statusResult))
-
                 statusResult["Camera"] = self.testManager.checkCameraIsAlive()
+
                 self.getDeviceStatus.emit(json.dumps(statusResult))
             except Exception as e:
                 print(e)
@@ -119,6 +149,17 @@ class BackendManager(QObject):
 
             sleep(5)
 
+    def __listenForProductSensor(self):
+        while self.runSensorChecker:
+            try:
+                isFull = self.testManager.checkProductSensor()
+                self.getProductSensor.emit(isFull)
+            except:
+                pass
+            sleep(0.3)
+    
+    
+    # endregion
 
     # COMM SLOTS
     @Slot()
@@ -129,10 +170,30 @@ class BackendManager(QObject):
             self.commChecker.start()
 
 
+    @Slot()
+    def startProductSensorCheck(self):
+        self.runSensorChecker = True
+        if not self.sensorChecker:
+            self.sensorChecker = HekaThread(target=self.__listenForProductSensor)
+            self.sensorChecker.start()
+        
+
+    @Slot()
+    def initDevices(self):
+        configData = getConfig()
+        if configData:
+            self.testManager.initDevices(configData)
+
+
     @Slot(int)
     def resetTest(self, productId):
         localWork = HekaThread(target=(lambda: self.__resetTest(productId)))
         localWork.start()
+
+
+    @Slot()
+    def setRobotHold(self):
+        self.testManager.setRobotHold(True)
 
 
     def __resetTest(self, productId):
@@ -155,6 +216,16 @@ class BackendManager(QObject):
     def requestShowTest(self):
         self.showTestView.emit()
 
+
+    @Slot(str)
+    def saveTestResult(self, model):
+        result = { 'Result': False, 'ErrorMessage': '', 'RecordId': 0 }
+        modelData = json.loads(model)
+        if modelData:
+            result = saveTestResult(modelData)
+        self.testResultSaved.emit(json.dumps(result))
+
+
     @Slot(int)
     def requestSections(self, productId):
         sampleData = [
@@ -175,6 +246,7 @@ class BackendManager(QObject):
             }
         ]
         self.getSections.emit(json.dumps(sampleData))
+
 
     @Slot()
     def requestState(self):
@@ -226,6 +298,13 @@ class BackendManager(QObject):
             }
         ]
         self.getState.emit(json.dumps(sampleData))
+
+
+    @Slot(int, int)
+    def requestLiveStatus(self, productId, shiftId):
+        data = getLiveStats(productId if productId > 0 else None, shiftId if shiftId > 0 else None)
+        if data:
+            self.getLiveStatus.emit(json.dumps(data))
 
 
     # PRODUCT SLOTS

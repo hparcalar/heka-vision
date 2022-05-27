@@ -163,7 +163,7 @@ Popup {
             newRecipe();
         else{
             txtRecipeCode.text = recipeModel.recipeCode;
-            txtRecipeCamResultByteIndex.text = (recipeModel.camResultByteIndex ?? 0).toString();
+            txtRecipeCamResultByteIndex.text = (recipeModel.camResultFormat ?? '');
             txtRecipeRbFromReadyToStart.text = recipeModel.rbFromReadyToStart;
             txtRecipeRbFromScanningFinished.text = recipeModel.rbFromScanningFinished;
             txtRecipeRbToRecipeStarted.text = recipeModel.rbToRecipeStarted;
@@ -176,7 +176,7 @@ Popup {
     function saveRecipe(){
         if (recipeModel){
             recipeModel.recipeCode = txtRecipeCode.text;
-            recipeModel.camResultByteIndex = parseInt(txtRecipeCamResultByteIndex.text);
+            recipeModel.camResultFormat = txtRecipeCamResultByteIndex.text;
             recipeModel.rbFromReadyToStart = txtRecipeRbFromReadyToStart.text;
             recipeModel.rbFromScanningFinished = txtRecipeRbFromScanningFinished.text;
             recipeModel.rbToRecipeStarted = txtRecipeRbToRecipeStarted.text;
@@ -1832,7 +1832,7 @@ Popup {
                                                             Layout.preferredHeight: 15
                                                             Layout.alignment: Qt.AlignTop
                                                             horizontalAlignment: Text.AlignLeft
-                                                            text:'Kamera(dan) Dönen Sonucun Byte Sırası'
+                                                            text:'Kamera Output Byte Formatı'
                                                             font.pixelSize: 12
                                                         }
 

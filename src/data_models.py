@@ -1,4 +1,4 @@
-from datetime import time
+from datetime import time, datetime
 from peewee import *
 from playhouse.shortcuts import model_to_dict, dict_to_model
 
@@ -28,6 +28,7 @@ def getProduct(productId):
     try:
         rawData = Product.get(Product.id == productId)
         data = model_to_dict(rawData, backrefs = True)
+        data['results'] = None
 
         rawSections = ProductSection.select().join(Product).where(Product.id == productId).dicts()
         data['sections'] = list(rawSections)
@@ -49,15 +50,20 @@ def getProduct(productId):
             if st['productCamRecipe']:
                 st['camRecipeId'] = int(st['productCamRecipe'])
                 rawRecipe = ProductCamRecipe.get(ProductCamRecipe.id == int(st['productCamRecipe']))
-                st['camRecipe'] = model_to_dict(rawRecipe, backrefs= True)
+                #st['camRecipe'] = model_to_dict(rawRecipe, backrefs= True)
             else:
                 st['camRecipeId'] = None
 
             st['liveStatus'] = False
             st['liveResult'] = False
+            st['product'] = None
+            st['section'] = None
+            st['camRecipe'] = None
+            st['productCamRecipe'] = None
             
-        data['steps'] = list(listSteps)
-
+        data['steps'] = sorted(list(listSteps), key=lambda x: x['orderNo'], reverse=False) 
+        data['camRecipes'] = None
+        # print(data)
     except Exception as e:
         print(e)
         pass
@@ -134,12 +140,13 @@ def saveOrUpdateProduct(model):
                     dbRecipe = ProductCamRecipe()
 
                 dbRecipe.recipeCode = d['recipeCode']
-                dbRecipe.camResultByteIndex = d['camResultByteIndex']
+                dbRecipe.camResultByteIndex = 0 #int(d['camResultByteIndex']) if d['camResultByteIndex'] else 0
                 dbRecipe.rbFromReadyToStart = d['rbFromReadyToStart']
                 dbRecipe.rbFromScanningFinished = d['rbFromScanningFinished']
                 dbRecipe.rbToRecipeStarted = d['rbToRecipeStarted']
                 dbRecipe.rbToStartScanning = d['rbToStartScanning']
                 dbRecipe.startDelay = d['startDelay']
+                dbRecipe.camResultFormat = str(d['camResultFormat']) if d['camResultFormat'] else ''
                 dbRecipe.orderNo = 0
                 dbRecipe.product = dbObj
                 dbRecipe.save()
@@ -237,6 +244,8 @@ def getEmployee(employeeId):
     try:
         rawData = Employee.get(Employee.id == employeeId)
         data = model_to_dict(rawData, backrefs = True)
+        data['testresult_set'] = None
+        data['liveproduction_set'] = None
     except:
         pass
     return data
@@ -247,6 +256,8 @@ def getEmployeeByCard(cardNo):
     try:
         rawData = Employee.get(Employee.employeeCode == cardNo)
         data = model_to_dict(rawData, backrefs = True)
+        data['testresult_set'] = None
+        data['liveproduction_set'] = None
     except:
         pass
     return data
@@ -330,6 +341,8 @@ def getShift(shiftId):
     try:
         rawData = Shift.get(Shift.id == shiftId)
         data = model_to_dict(rawData, backrefs = True)
+        data['testresult_set'] = None
+        data['liveproduction_set'] = None
 
         if data['startTime']:
             to = data['startTime']
@@ -397,6 +410,58 @@ def deleteShift(shiftId):
         result['Result'] = False
         result['ErrorMessage'] = str(e)
 
+    return result
+
+
+# TEST RESULTS CRUD
+def saveTestResult(model):
+    result = { 'Result': False, 'ErrorMessage': '', 'RecordId': 0 }
+    try:
+        dbObj = TestResult()
+
+        dbObj.testDate = datetime.now()
+        dbObj.product = Product.get(Product.id == model['productId'])
+        dbObj.barcode = ''
+        dbObj.section = ProductSection.get(ProductSection.id == model['sectionId']) if not model['sectionId'] == None else None
+        dbObj.step = ProductTestStep.get(ProductTestStep.id == model['stepId']) if not model['stepId'] == None else None
+        dbObj.shift = Shift.get(Shift.id == model['shiftId']) if not model['shiftId'] == None else None
+        dbObj.employee = Employee.get(Employee.id == model['employeeId']) if not model['employeeId'] == None else None
+        dbObj.isOk = model['isOk']
+        
+        dbObj.save()
+
+        result['Result'] = True
+        result['RecordId'] = dbObj.id
+    except Exception as e:
+        result['Result'] = False
+        result['ErrorMessage'] = str(e)
+
+    return result
+
+
+def getLiveStats(productId = None, shiftId = None):
+    # shift based: total test, total fault count
+    # product based: per step fault count
+    result = { 'Live': { }, 'Steps': [] }
+
+    try:
+        # shift based data
+        okCount = TestResult.select().where((TestResult.shift == shiftId) & (TestResult.isOk == True)).count()
+        nokCount = TestResult.select().where((TestResult.shift == shiftId) & (TestResult.isOk == False)).count()
+
+        result['Live']['totalCount'] = okCount + nokCount
+        result['Live']['faultCount'] = nokCount
+
+        # product based data
+        if productId:
+            prData = getProduct(productId)
+            if prData and prData['steps']:
+                for st in prData['steps']:
+                    st['faultCount'] = TestResult.select().where((TestResult.shift == shiftId) & (TestResult.product == productId) & (TestResult.isOk == False)).count()
+                    result['Steps'].append(st)
+    except:
+        pass
+    
     return result
 
 
@@ -484,6 +549,7 @@ class ProductCamRecipe(BaseModel):
     orderNo = IntegerField()
     product = ForeignKeyField(Product, backref='camRecipes')
     startDelay = IntegerField(null=True)
+    camResultFormat = CharField(null=True)
 
 
 class ProductSection(BaseModel):
