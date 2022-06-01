@@ -201,6 +201,7 @@ class BackendManager(QObject):
     def closeHatch(self):
         #pass
         self.testManager.closeHatch()
+        self.testManager.setVacuum(0)
 
 
     def __resetTest(self, productId):

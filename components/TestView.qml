@@ -17,6 +17,8 @@ Item{
     property bool robotStartPosArrived: false
     property bool testRunning: false
     property bool isFullByProduct: false
+    property bool selectionIsValid: false
+    property string selectionValidMsg : ''
 
     property string silentCardNo: ""
     property date silentDate: new Date()
@@ -58,6 +60,7 @@ Item{
         backend.startProductSensorCheck();
 
         btnReset.enabled = false;
+        checkSelectionsAreValid();
     }
 
     function drawParts(){
@@ -71,7 +74,7 @@ Item{
 
                 cmpPartCategory.createObject(partsContainer, {
                         partName: partObj.sectionName,
-                        images: partObj.images && partObj.images.length > 0 ? partObj.images : ['../assets/empty_image.png'],
+                        images: partObj.images && partObj.images.length > 0 ? partObj.images : [],
                     });
             }
         }
@@ -252,6 +255,7 @@ Item{
                 d.images = [];
             });
 
+            drawParts();
             bindTestSteps();
             bindGridSchema();
         } catch (error) {
@@ -299,6 +303,27 @@ Item{
         backend.closeHatch();
     }
 
+    function checkSelectionsAreValid(){
+        let tmpIsValid = true;
+        if (activeProduct == null || activeProduct.id <= 0){
+            tmpIsValid = false;
+            selectionValidMsg = 'Ürün seçiniz';
+        }
+        else if (activeEmployee == null && activeEmployee.id <= 0){
+            tmpIsValid = false;
+            selectionValidMsg = 'Kartınızı Okutun';
+        }
+        else if (activeShift == null || activeShift.id <= 0){
+            tmpIsValid = false;
+            selectionValidMsg = 'Vardiya Seçin';
+        }
+
+        selectionIsValid = tmpIsValid;
+        if (selectionIsValid == false){
+            btnStart.enabled = false;
+        }
+    }
+
     function saveTestResult(testResult){
         if (activeProduct != null && activeProduct.id > 0){
             const foundStep = activeProduct.steps.find(d => d.id == runningStepId);
@@ -341,6 +366,7 @@ Item{
             activeShift = JSON.parse(data);
             bindShift();
             requestLiveStats();
+            checkSelectionsAreValid();
         }
 
         function onProductSelected(data){
@@ -350,6 +376,7 @@ Item{
 
             bindProduct();
             requestLiveStats();
+            checkSelectionsAreValid();
         }
 
         function onEmployeeCardRead(data){
@@ -357,6 +384,7 @@ Item{
             if (activeEmployee){
                 popupCardRead.close();
                 bindEmployee();
+                checkSelectionsAreValid();
             }
             else{
                 silentDateSet = false;
@@ -436,7 +464,7 @@ Item{
                     // save fault step result before reset
                     if (stepRes.Result == false){
                         saveTestResult(false);
-                        testRunning = false;
+                        // testRunning = false;
                     }
 
                     const foundStepIndex = activeProduct.steps.indexOf(foundStep);
@@ -493,7 +521,21 @@ Item{
 
         function onGetProductSensor(isFull){
             isFullByProduct = isFull;
-            btnReset.enabled = isFullByProduct;
+
+            if (testRunning == false)
+            {
+                if (selectionIsValid == false)
+                    btnReset.enabled = false;
+                else
+                    btnReset.enabled = isFullByProduct;
+            }
+            else{
+                if (isFullByProduct == false){
+                    setRobotHold();
+                }
+                else
+                    btnReset.enabled = false;
+            }
         }
 
         function onGetNewImageResult(fullImagePath, recipeId){
@@ -574,7 +616,7 @@ Item{
                         echoMode: TextInput.Password
                         Keys.onPressed: function(event){
                             if (event.key == Qt.Key_Enter){
-                                if (txtLoginPassword.text == '8910'){
+                                if (txtLoginPassword.text.indexOf('0006013789') > -1 || txtLoginPassword.text == '8910'){
                                     if (loginState == 0){
                                         loginState = 1;
                                         popupAuth.close();
@@ -982,7 +1024,7 @@ Item{
                                 Layout.fillHeight: true
                                 Layout.fillWidth: true
                                 sourceSize.height: parent.height
-                                fillMode: Image.PreserveAspectFit
+                                fillMode: Image.Stretch
                                 source: modelData
                             }
                         }
@@ -1236,6 +1278,7 @@ Item{
 
                             // HATCH CONTROL BUTTONS
                             Rectangle{
+                                visible: testRunning == false
                                 Layout.preferredWidth: parent.width * 0.12
                                 Layout.fillHeight: true
                                 color: "transparent"
@@ -1325,6 +1368,7 @@ Item{
                                         color: "transparent"
 
                                         RowLayout{
+                                            visible: !(isFullByProduct == false && testRunning == false) || selectionIsValid == false
                                             anchors.fill: parent
                                             spacing:0
 
@@ -1444,6 +1488,37 @@ Item{
                                                 }
                                             }
                                         }
+
+                                        Label{
+                                            id: lblValidError
+                                            visible: (isFullByProduct == false && testRunning == false) || selectionIsValid == false
+                                            anchors.fill: parent
+                                            minimumPointSize: 5
+                                            font.pointSize: 22
+                                            font.bold: true
+                                            fontSizeMode: Text.Fit
+                                            horizontalAlignment: Text.AlignHCenter
+                                            verticalAlignment: Text.AlignVCenter
+                                            text: (isFullByProduct == false && testRunning == false) ? "ÜRÜN BEKLENİYOR" : selectionValidMsg
+                                            background: Rectangle {
+                                                border.width: btnSettings.activeFocus ? 2 : 1
+                                                border.color: "#333"
+                                                radius: 4
+                                                // gradient: Gradient {
+                                                //     GradientStop { position: 0 ; color: btnSettings.pressed ? "#326195" : "#dedede" }
+                                                //     GradientStop { position: 1 ; color: btnSettings.pressed ? "#dedede" : "#326195" }
+                                                // }
+
+                                                ColorAnimation on color { id: animColorWaiting; 
+                                                    running:true; to: "#afafaf"; duration: 500;
+                                                    onFinished: function(){
+                                                        animColorWaiting.to = animColorWaiting.to == '#afafaf' ? '#dedede' : '#afafaf';
+                                                        animColorWaiting.start();
+                                                    }
+                                                }
+                                            }
+                                            
+                                        }
                                     }
 
                                     // HOLD AND SETTINGS BUTTON
@@ -1553,9 +1628,9 @@ Item{
                     // SECOND ROW (PRODUCT SECTION GRID)
                     Rectangle{
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 150
+                        Layout.preferredHeight: 120
                         Layout.alignment: Qt.AlignTop
-                        color: isFullByProduct == true ? "#804cdb2c" : "transparent"
+                        color: "transparent"//isFullByProduct == true ? "#804cdb2c" : "transparent"
                         border.width: 1
                         border.color: "transparent"
                         radius:5
@@ -1595,7 +1670,7 @@ Item{
 
                                     // SELECTED SECTION COLOR ANIMATION
                                     ColorAnimation on color { id: animColor; 
-                                        running: modelData.isRunning && modelData.isRunning == true; to: "#4cdb2c"; duration: 500;
+                                        running: testRunning == true && modelData.isRunning && modelData.isRunning == true; to: "#4cdb2c"; duration: 500;
                                         onFinished: function(){
                                             animColor.to = animColor.to == '#4cdb2c' ? '#2396d9' : '#4cdb2c';
                                             animColor.start();
@@ -1604,7 +1679,7 @@ Item{
 
                                     // LINE SCAN ANIMATION
                                     Rectangle{
-                                        visible: modelData.isRunning == true
+                                        visible: modelData.isRunning == true && testRunning == true
                                         anchors.top: parent.top
                                         anchors.bottom: parent.bottom
                                         anchors.left : parent.left
@@ -1775,7 +1850,7 @@ Item{
                     // FOURTH ROW (NETWORK STATS & LIVE TEST RESULT STATUS)
                     Rectangle{
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 120
+                        Layout.preferredHeight: 100
                         Layout.alignment: Qt.AlignBottom
                         Layout.bottomMargin: 5
 
@@ -2118,7 +2193,7 @@ Item{
 
                                             Label {
                                                 anchors.centerIn: parent
-                                                anchors.verticalCenterOffset: 20
+                                                anchors.verticalCenterOffset: -20
                                                 rotation: 180
                                                 font.pointSize: 12
                                                 color: "#333"

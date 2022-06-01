@@ -13,7 +13,7 @@ ApplicationWindow {
     width: screen.desktopAvailableWidth
     height: screen.desktopAvailableHeight
     // visibility: Window.FullScreen
-    // flags: Qt.WindowMaximized | Qt.Window
+    flags: Qt.WindowMaximized | Qt.FramelessWindowHint //| Qt.Window
     visible: true
     title: qsTr("Klima Gövde-Kapak Kalite Sistemi")
     onClosing: function(){
@@ -97,7 +97,7 @@ ApplicationWindow {
                             anchors.topMargin: 20
                             color:"#fefefe"
                             padding: 10
-                            font.pixelSize: 32
+                            font.pixelSize: 24
                             font.bold: true
                             text: "Klima Gövde-Kapak Kalite Sistemi"
                         }

@@ -309,6 +309,42 @@ class Gp7Connector:
         return data
 
 
+    def readBarrier(self, inputAddr, bitDivider):
+        self.__waitForAvailable()
+
+        self._busyByCommand = True
+        data = None
+        self.__connect()
+        try:
+            convertedVal = binascii.hexlify(int.to_bytes(inputAddr,2,byteorder='little', signed=False), ' ').decode()
+            cmd = readIoSignal.replace('{VAL}', convertedVal)
+            
+            self._socket.sendall(bytearray.fromhex(cmd))
+            retData = self._socket.recv(1024)
+            
+            dataByte = int.from_bytes([ retData[32] ], 'little', signed=False)
+            data = (dataByte & bitDivider)
+            if data == False:
+                # parse address
+                convertedPrm = binascii.hexlify(int.to_bytes(2702,2,byteorder='little', signed=False), ' ').decode()
+                cmd = writeIoSignal.replace('{PRM}', convertedPrm)
+
+                # parse value
+                convertedVal = binascii.hexlify(int.to_bytes(0,1,byteorder='little', signed=False), ' ').decode()
+                cmd = cmd.replace('{VAL}', convertedVal)
+                
+                self._socket.sendall(bytearray.fromhex(cmd))
+                retData = self._socket.recv(1024)
+        except Exception as e:
+            print('read error: ')
+            print(e)
+
+        self.__disconnect()
+        self._busyByCommand = False
+
+        return data
+
+
     def readExternalIo(self, inputAddr, bitDivider):
         self.__waitForAvailable()
 
@@ -325,6 +361,7 @@ class Gp7Connector:
             dataByte = int.from_bytes([ retData[32] ], 'little', signed=False)
             data = (dataByte & bitDivider)
         except Exception as e:
+            print('read error: ')
             print(e)
 
         self.__disconnect()

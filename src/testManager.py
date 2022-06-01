@@ -1,6 +1,8 @@
 from src.cvx400 import *
 from src.gp7 import *
 from src.hkThread import HekaThread
+from datetime import datetime
+
 
 class TestManager:
 
@@ -14,20 +16,39 @@ class TestManager:
         self._activeStepIndex = 0
         self._stepStatus = False
         self._isTestRunning = False
+        
+        self._barrierThread = None
+        self._lightBarrierOk = False
+        self._barrierThreadRun = False
+
+        self._hatchCheckThread = None
+        self._hatchIsClosed = False
+        self._closeHatchCommandActivated = False
 
 
     def __moveNextStep(self):
         self._activeStepIndex = self._activeStepIndex + 1
         try:
             if len(self._product['steps']) <= self._activeStepIndex:
-                self.__moveRobotToHome()
-                self._robot.writeBit(3,0)
-                self._backend.raiseAllStepsFinished()
-                self.openHatch()
+                try:
+                    self.__moveRobotToHome()
+                    self._robot.writeBit(3,0)
+                    self._backend.raiseAllStepsFinished()
+                    self.openHatch()
+                    self.__stopBarrierThread()
+                except:
+                    pass
 
                 self._isTestRunning = False
+                self._barrierThreadRun = False
                 self._stepStatus = False
                 self._activeStepIndex = 0
+
+                try:
+                    self.__stopBarrierThread()
+                    self.__stopHatchCheckThread()
+                except:
+                    pass
         except:
             pass
 
@@ -99,6 +120,8 @@ class TestManager:
             isHome = self.__readFromRobot(arriveHomeData)
             while not isHome or int(isHome) != int(arriveHomeData[2]):
                 isHome = self.__readFromRobot(arriveHomeData)
+                if self._isTestRunning == False:
+                    return
                 # print('HOME VARIŞ: ' + str(isHome))
                 sleep(0.1)
                 tryCount = tryCount + 1
@@ -164,17 +187,129 @@ class TestManager:
         
         return (not retData == None) and retData != 0
 
+
+    def __checkLightBarrier(self) -> bool:
+        if not self._robot:
+            return False
+
+        retData = self._robot.readBarrier(2, 16)
+        if not retData == None:
+            lightIsOk = retData != 0
+            return lightIsOk
+
+        return False
     
+    
+    def __startBarrierThread(self):
+        try:
+            if self._barrierThread == None:
+                self._barrierThread = HekaThread(target=self.__loopBarrierThread)
+            else:
+                try:
+                    self._barrierThread.stop()
+                    self._barrierThread = None
+                except:
+                    pass
+                self._barrierThread = HekaThread(target=self.__loopBarrierThread)
+            
+            self._barrierThread.start()
+        except Exception as e:
+            pass
+
+
+    def __stopBarrierThread(self):
+        try:
+            if not self._barrierThread == None:
+                self._barrierThread.stop()
+                self._barrierThread = None
+        except:
+            pass
+
+
+    def __loopBarrierThread(self):
+        #pass
+        while self._isTestRunning == True or self._barrierThreadRun == True:
+            try:
+                self._lightBarrierOk = self.__checkLightBarrier()
+                if self._lightBarrierOk == False:
+                    self.__raiseError('Müdahale tespit edildi. Test durduruldu.')
+                    self.setRobotHold(True)
+                    self._barrierThreadRun = False
+                    break
+                sleep(0.05)
+            except:
+                pass
+        
+
+    def __startHatchCheckThread(self):
+        try:
+            if self._hatchCheckThread == None:
+                self._hatchCheckThread = HekaThread(target=self.__loopHatchCheckThread)
+            else:
+                try:
+                    self._hatchCheckThread.stop()
+                    self._hatchCheckThread = None
+                except:
+                    pass
+                self._hatchCheckThread = HekaThread(target=self.__loopHatchCheckThread)
+            
+            self._hatchCheckThread.start()
+        except Exception as e:
+            pass
+
+
+    def __stopHatchCheckThread(self):
+        try:
+            if not self._hatchCheckThread == None:
+                self._hatchCheckThread.stop()
+                self._hatchCheckThread = None
+        except:
+            pass
+
+
+    def __loopHatchCheckThread(self):
+        dtCmdStart = None
+        while self._isTestRunning == True or self._closeHatchCommandActivated == True:
+            try:
+                self._hatchIsClosed = self.checkHatchIsClosed()
+                if self._hatchIsClosed == False and self._closeHatchCommandActivated == False:
+                    self.setRobotHold(True)
+                    self.__raiseError('Kapak kapalı değil. Test durduruldu.')
+                    break
+                elif self._closeHatchCommandActivated == True:
+                    if self._hatchIsClosed == False:
+                        if dtCmdStart == None:
+                            dtCmdStart = datetime.now()
+                        
+                        dtCheck = datetime.now()
+
+                        diffInSec = (dtCheck - dtCmdStart).seconds
+                        if diffInSec >= 5:
+                            self._closeHatchCommandActivated = False
+                            self.stopClosingHatch()
+                            self.setRobotHold(True)
+                            self.__raiseError('Kapak kapalı değil. Test durduruldu.')
+                            break
+                    else:
+                        self._closeHatchCommandActivated = False
+            except:
+                pass
+            sleep(0.2)
+    
+
     def stopTest(self):
         self._stepStatus = False
         self._isTestRunning = False
+        self._barrierThreadRun = False
         sleep(1)
         self._activeStepIndex = 0
+        self.__stopBarrierThread()
+        self.__stopHatchCheckThread()
 
     
     def checkProductSensor(self) -> bool:
-        if self._isTestRunning == True:
-            return True
+        # if self._isTestRunning == True:
+        #     return True
         return self.__productSensorIsFull()
 
 
@@ -222,8 +357,16 @@ class TestManager:
             self._product = productData
             self._activeStepIndex = 0
 
+            self.__startBarrierThread()
+            sleep(0.3)
             self.setVacuum(1)
             self.closeHatch()
+
+            sleep(0.1)
+            while self._hatchIsClosed == False:
+                if self._isTestRunning == False:
+                    return
+                sleep(0.1)
             
             if not self.__prepareRobotToStart():
                 if self._isTestRunning == False:
@@ -238,31 +381,53 @@ class TestManager:
 
     def setRobotHold(self, status):
         self._robot.setHoldStatus(status)
-        self.openHatch()
 
-        if status:
+        if status == True:
+            # self.openHatch()
+            self.stopClosingHatch()
             self.stopTest()
 
 
-    def checkHatchIsClosed(self, status):
+    def checkHatchIsClosed(self):
         retData = self._robot.readExternalIo(2, 4)
         return (not retData == None) and retData != 0
 
 
     def openHatch(self) -> bool:
-        #pass
-        self._robot.writeExternalIo(2702, 0) # disable down signal
-        sleep(0.1)
-        self.setVacuum(0)
-        sleep(0.2)
-        return self._robot.writeExternalIo(2701, 1) # enable up signal
+        # self._barrierThreadRun = True
+        # self.__startBarrierThread()
+        self._lightBarrierOk = self.__checkLightBarrier()
+
+        if self._lightBarrierOk == True:
+            self._robot.writeExternalIo(2702, 0) # disable down signal
+            sleep(0.1)
+            self.setVacuum(0)
+            sleep(0.2)
+            return self._robot.writeExternalIo(2701, 1) # enable up signal
+        # sleep(3)
+        # self._robot.writeExternalIo(2701, 0)
 
     
     def closeHatch(self) -> bool:
-        #pass
-        self._robot.writeExternalIo(2701, 0) # disable up signal
-        sleep(0.1)
-        return self._robot.writeExternalIo(2702, 1) # enable up signal
+        self._closeHatchCommandActivated = True
+        self.__startHatchCheckThread()
+
+        self._barrierThreadRun = True
+        self.__startBarrierThread()
+        self._lightBarrierOk = self.__checkLightBarrier()
+
+        if self._lightBarrierOk == True:
+            self._robot.writeExternalIo(2701, 0) # disable up signal
+            sleep(0.1)
+            return self._robot.writeExternalIo(2702, 1) # enable up signal
+        else:
+            return False
+
+
+    def stopClosingHatch(self) -> bool:
+        self._robot.writeExternalIo(2702, 0)
+        self.setVacuum(0)
+        return True
         
 
     def setVacuum(self, status: int) -> bool:
@@ -297,12 +462,11 @@ class TestManager:
                 # print('Reçete:' +  recipeNoData[1])
                 camRes = self._camera.selectProgram(recipeNoData[0], recipeNoData[1])
                 if not camRes:
-                    self.__raiseError('Reçete Programı Seçilemedi')
-                    self._camera.disconnect()
+                    if self._isTestRunning == True:
+                        self.__raiseError('Reçete Programı Seçilemedi')
                     return
 
                 if self._stepStatus == False:
-                    self._camera.disconnect()
                     return
 
                 # RESET ROBOT MOVEMENT FOR CAMERA TRIGGER
@@ -323,6 +487,9 @@ class TestManager:
                 arrivePosData = recipe['rbFromReadyToStart'].split(':')
                 onPos = self.__readFromRobot(arrivePosData)
                 while not onPos or int(onPos) != int(arrivePosData[2]):
+                    if self._isTestRunning == False:
+                        return
+
                     onPos = self.__readFromRobot(arrivePosData)
                     # print('POZİSYON BAŞ VARIŞ: ' + str(onPos))
                     sleep(0.1)
@@ -331,7 +498,8 @@ class TestManager:
                         self._robot.writeInteger(0,0)
                         self._robot.writeBit(3, 1)
                         self._robot.writeBit(4, 1)
-                        self.__raiseError('Robot Beklenen Pozisyona Getirilemedi.')
+                        if self._isTestRunning == True:
+                            self.__raiseError('Robot Beklenen Pozisyona Getirilemedi.')
                         return
 
                 self.__raiseStartPosArrived()
@@ -363,12 +531,16 @@ class TestManager:
                     if self._stepStatus == False:
                         return
 
+                    if self._isTestRunning == False:
+                        return
+
                     onPos = self.__readFromRobot(scanEndPosData)
                     # print('POZİSYON BİTİŞ VARIŞ: ' + str(onPos))
                     sleep(0.1)
                     tryCount = tryCount + 1
                     if tryCount > 300: # max timeout 10 sn
-                        self.__raiseError('Robot Bölge Taramasını Tamamlayamadı')
+                        if self._isTestRunning == True:
+                            self.__raiseError('Robot Bölge Taramasını Tamamlayamadı')
                         return
 
                 # UPDATE! = WAIT UNTIL CAMERA OUTPUT IS READY
@@ -379,12 +551,16 @@ class TestManager:
                     if self._stepStatus == False:
                         return
 
+                    if self._isTestRunning == False:
+                        return
+
                     isOutputReady = self._camera.isOutputReady()
                     sleep(0.1)
 
                     tryCount = tryCount + 1
                     if tryCount > 100:
-                        self.__raiseError('Kamera Output Bilgisi Alınamadı')
+                        if self._isTestRunning == True:
+                            self.__raiseError('Kamera Output Bilgisi Alınamadı')
                         return
                     
 

@@ -3,7 +3,7 @@ from os.path import isfile, join, isdir, getmtime, getctime
 from src.hkThread import HekaThread
 from datetime import datetime
 from time import sleep
-
+from PIL import Image
 
 class DirManager:
     def __init__(self, backend) -> None:
@@ -34,6 +34,10 @@ class DirManager:
                             if latestImage:
                                 fullPath = dir + '/' + latestTestDir + '/' + latestImage
                                 if datetime.fromtimestamp(getctime(fullPath)) > threshDate:
+                                    im = Image.open(fullPath)
+                                    im=im.rotate(90, expand=True)
+                                    im.save(fullPath)
+
                                     dirIndex = self._directories.index(dir)
                                     self.__raiseNewImageResult(dir, fullPath, self._recipes[dirIndex])
                                     threshDate = datetime.now()

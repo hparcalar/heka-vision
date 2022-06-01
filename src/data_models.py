@@ -475,7 +475,8 @@ def getLiveStats(productId = None, shiftId = None):
             prData = getProduct(productId)
             if prData and prData['steps']:
                 for st in prData['steps']:
-                    st['faultCount'] = TestResult.select().where((TestResult.shift == shiftId) & (TestResult.product == productId) & (TestResult.isOk == False)).count()
+                    st['faultCount'] = TestResult.select().where((TestResult.shift == shiftId) & (TestResult.product == productId) 
+                        & (TestResult.isOk == False) & (TestResult.step == st['id'])).count()
                     result['Steps'].append(st)
     except:
         pass
