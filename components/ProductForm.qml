@@ -19,6 +19,21 @@ Popup {
     property var recipeModel: new Object({ id:0 })
     property var stepModel: new Object({ id:0 })
 
+    FileDialog {
+        id: fileDialog
+        title: "Lütfen dizin seçiniz"
+        selectMultiple: false
+        selectFolder: true
+        onAccepted: {
+            txtRecipeImagePath.text = fileDialog.fileUrl;
+            txtRecipeImagePath.text = txtRecipeImagePath.text.replace('file://', '');
+            fileDialog.close();
+        }
+        onRejected: {
+            fileDialog.close();
+        }
+    }
+
     anchors.centerIn: parent
     width: parent.width * 0.8
     height: parent.height * 0.8
@@ -169,6 +184,7 @@ Popup {
             txtRecipeRbToRecipeStarted.text = recipeModel.rbToRecipeStarted;
             txtRecipeRbToStartScan.text = recipeModel.rbToStartScanning;
             txtRecipeStartDelay.text = (recipeModel.startDelay ?? 0).toString();
+            txtRecipeImagePath.text = (recipeModel.imageDir ?? '');
             txtRecipeCode.focus = true;
         }
     }
@@ -181,6 +197,7 @@ Popup {
             recipeModel.rbFromScanningFinished = txtRecipeRbFromScanningFinished.text;
             recipeModel.rbToRecipeStarted = txtRecipeRbToRecipeStarted.text;
             recipeModel.rbToStartScanning = txtRecipeRbToStartScan.text;
+            recipeModel.imageDir = txtRecipeImagePath.text;
 
             if (txtRecipeStartDelay.text.length > 0)
                 recipeModel.startDelay = parseInt(txtRecipeStartDelay.text);
@@ -201,6 +218,10 @@ Popup {
                 saveModel();
                 // bindSectionList();
             }
+    }
+
+    function showFileDialog(){
+        fileDialog.open();
     }
     /* END RECIPE FUNCTIONS */
 
@@ -2048,6 +2069,49 @@ Popup {
                                                                         border.width: 1
                                                                         color: parent.focus ? "#efefef" : "#ffffff"
                                                                     }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+
+                                                // RECIPE IMAGE PATH FIELD
+                                                Rectangle{
+                                                    Layout.preferredHeight: 50
+                                                    Layout.fillWidth: true
+                                                    Layout.alignment: Qt.AlignTop
+                                                    Layout.margins: 2
+                                                    color: "transparent"
+
+                                                    ColumnLayout{
+                                                        anchors.fill: parent
+
+                                                        Label{
+                                                            Layout.fillWidth: true
+                                                            Layout.preferredHeight: 15
+                                                            Layout.alignment: Qt.AlignTop
+                                                            horizontalAlignment: Text.AlignLeft
+                                                            text:'Resim Dizini'
+                                                            font.pixelSize: 12
+                                                        }
+
+                                                        TextField {
+                                                            id: txtRecipeImagePath
+                                                            Layout.fillHeight: true
+                                                            Layout.fillWidth: true
+                                                            font.pixelSize: 9
+                                                            padding: 10
+                                                            background: Rectangle {
+                                                                radius: 5
+                                                                border.color: parent.focus ? "#326195" : "#888"
+                                                                border.width: 1
+                                                                color: parent.focus ? "#efefef" : "#ffffff"
+                                                            }
+
+                                                            MouseArea{
+                                                                anchors.fill: parent
+                                                                onClicked: function(){
+                                                                    showFileDialog();
                                                                 }
                                                             }
                                                         }

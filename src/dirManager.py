@@ -1,5 +1,5 @@
 from os import listdir
-from os.path import isfile, join, isdir, getmtime
+from os.path import isfile, join, isdir, getmtime, getctime
 from src.hkThread import HekaThread
 from datetime import datetime
 from time import sleep
@@ -9,12 +9,13 @@ class DirManager:
     def __init__(self, backend) -> None:
         self._backend = backend
         self._directories = []
+        self._recipes = []
         self._isRunning = False
         self._listeners = []
 
 
-    def __raiseNewImageResult(self, dir, imagePath):
-        self._backend.raiseNewImageResult(dir, imagePath)
+    def __raiseNewImageResult(self, dir, imagePath, recipe):
+        self._backend.raiseNewImageResult(dir, imagePath, recipe)
 
 
     def __listenProcess(self, dir):
@@ -25,15 +26,16 @@ class DirManager:
                 if isdir(dir):
                     subDirs = listdir(dir)
                     if len(subDirs) > 0:
-                        latestTestDir = sorted(subDirs, key= lambda d: getmtime(dir + '/' + d), reverse=True)[0]
+                        latestTestDir = sorted(subDirs, key= lambda d: getctime(dir + '/' + d), reverse=True)[0]
                         imageList = listdir(dir + '/' + latestTestDir)
 
                         if len(imageList) > 0:
-                            latestImage = sorted(imageList, key= lambda d: getmtime(dir + '/' + latestTestDir + '/' + d), reverse=True)[0]
+                            latestImage = sorted(imageList, key= lambda d: getctime(dir + '/' + latestTestDir + '/' + d), reverse=True)[0]
                             if latestImage:
                                 fullPath = dir + '/' + latestTestDir + '/' + latestImage
-                                if datetime.fromtimestamp(getmtime(fullPath)) > threshDate:
-                                    self.__raiseNewImageResult(dir, fullPath)
+                                if datetime.fromtimestamp(getctime(fullPath)) > threshDate:
+                                    dirIndex = self._directories.index(dir)
+                                    self.__raiseNewImageResult(dir, fullPath, self._recipes[dirIndex])
                                     threshDate = datetime.now()
                             
             except:
@@ -54,6 +56,10 @@ class DirManager:
     def setDirectories(self, dirList):
         self.stopListeners()
         self._directories = dirList
+
+
+    def setRecipes(self, recipeList):
+        self._recipes = recipeList
 
 
     def startListeners(self):

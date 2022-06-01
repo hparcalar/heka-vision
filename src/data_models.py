@@ -26,14 +26,19 @@ def getProductList():
 def getProduct(productId):
     data = None
     try:
-        rawData = Product.get(Product.id == productId)
-        data = model_to_dict(rawData, backrefs = True)
-        data['results'] = None
+        rawData = Product.select(Product.id, Product.productNo, Product.productName, Product.gridWidth, Product.gridHeight,
+            Product.isActive, Product.imagePath).where(Product.id == productId).get()
+        data = model_to_dict(rawData, backrefs = False)
 
-        rawSections = ProductSection.select().join(Product).where(Product.id == productId).dicts()
+        rawSections = ProductSection.select(ProductSection.id, ProductSection.sectionName, ProductSection.orderNo,
+            ProductSection.posX, ProductSection.posY, ProductSection.sectionWidth, ProductSection.sectionHeight,
+            ProductSection.areaNo, ProductSection.areaInfo, ProductSection.productCamRecipe).join(Product).where(Product.id == productId).dicts()
         data['sections'] = list(rawSections)
 
-        rawRecipes = ProductCamRecipe.select().join(Product).where(Product.id == productId).dicts()
+        rawRecipes = ProductCamRecipe.select(ProductCamRecipe.id, ProductCamRecipe.recipeCode, ProductCamRecipe.rbToRecipeStarted,
+                    ProductCamRecipe.rbFromReadyToStart, ProductCamRecipe.rbToStartScanning, ProductCamRecipe.rbFromScanningFinished,
+                    ProductCamRecipe.camResultByteIndex, ProductCamRecipe.camResultFormat,  ProductCamRecipe.startDelay,
+                    ProductCamRecipe.orderNo, ProductCamRecipe.imageDir).where(ProductCamRecipe.product == productId).dicts()
         data['recipes'] = list(rawRecipes)
 
         rawSteps = ProductTestStep.select().join(Product).where(Product.id == productId).dicts()
@@ -49,8 +54,20 @@ def getProduct(productId):
             
             if st['productCamRecipe']:
                 st['camRecipeId'] = int(st['productCamRecipe'])
-                rawRecipe = ProductCamRecipe.get(ProductCamRecipe.id == int(st['productCamRecipe']))
-                #st['camRecipe'] = model_to_dict(rawRecipe, backrefs= True)
+                rawRecipe = ProductCamRecipe.select(ProductCamRecipe.id, ProductCamRecipe.recipeCode, ProductCamRecipe.rbToRecipeStarted,
+                    ProductCamRecipe.rbFromReadyToStart, ProductCamRecipe.rbToStartScanning, ProductCamRecipe.rbFromScanningFinished, ProductCamRecipe.startDelay,
+                    ProductCamRecipe.camResultByteIndex, ProductCamRecipe.camResultFormat, ProductCamRecipe.orderNo, ProductCamRecipe.imageDir).where(
+                        ProductCamRecipe.id == int(st['productCamRecipe'])).get()
+
+                recipeObj = model_to_dict(rawRecipe, backrefs= False)
+
+                recipeObj['results'] = None
+                recipeObj['testresult_set'] = None
+                recipeObj['liveproduction_set'] = None
+                recipeObj['sections'] = None
+                recipeObj['product'] = None
+                recipeObj['steps'] = None
+                st['camRecipe'] = recipeObj
             else:
                 st['camRecipeId'] = None
 
@@ -58,7 +75,7 @@ def getProduct(productId):
             st['liveResult'] = False
             st['product'] = None
             st['section'] = None
-            st['camRecipe'] = None
+            # st['camRecipe'] = None
             st['productCamRecipe'] = None
             
         data['steps'] = sorted(list(listSteps), key=lambda x: x['orderNo'], reverse=False) 
@@ -149,6 +166,7 @@ def saveOrUpdateProduct(model):
                 dbRecipe.camResultFormat = str(d['camResultFormat']) if d['camResultFormat'] else ''
                 dbRecipe.orderNo = 0
                 dbRecipe.product = dbObj
+                dbRecipe.imageDir = str(d['imageDir']) if d['imageDir'] else None
                 dbRecipe.save()
 
          # save steps
@@ -242,8 +260,8 @@ def getEmployeeList():
 def getEmployee(employeeId):
     data = None
     try:
-        rawData = Employee.get(Employee.id == employeeId)
-        data = model_to_dict(rawData, backrefs = True)
+        rawData = Employee.select(Employee.id, Employee.employeeCode, Employee.employeeName, Employee.isActive).where(Employee.id == employeeId).get()
+        data = model_to_dict(rawData, backrefs = False)
         data['testresult_set'] = None
         data['liveproduction_set'] = None
     except:
@@ -254,8 +272,8 @@ def getEmployee(employeeId):
 def getEmployeeByCard(cardNo):
     data = None
     try:
-        rawData = Employee.get(Employee.employeeCode == cardNo)
-        data = model_to_dict(rawData, backrefs = True)
+        rawData = Employee.select(Employee.id, Employee.employeeCode, Employee.employeeName, Employee.isActive).where(Employee.employeeCode == cardNo).get()
+        data = model_to_dict(rawData, backrefs = False)
         data['testresult_set'] = None
         data['liveproduction_set'] = None
     except:
@@ -339,8 +357,8 @@ def getShiftList():
 def getShift(shiftId):
     data = None
     try:
-        rawData = Shift.get(Shift.id == shiftId)
-        data = model_to_dict(rawData, backrefs = True)
+        rawData = Shift.select(Shift.id, Shift.shiftCode, Shift.startTime, Shift.endTime).where(Shift.id == shiftId).get()
+        data = model_to_dict(rawData, backrefs = False)
         data['testresult_set'] = None
         data['liveproduction_set'] = None
 
@@ -550,6 +568,7 @@ class ProductCamRecipe(BaseModel):
     product = ForeignKeyField(Product, backref='camRecipes')
     startDelay = IntegerField(null=True)
     camResultFormat = CharField(null=True)
+    imageDir = CharField(null=True)
 
 
 class ProductSection(BaseModel):

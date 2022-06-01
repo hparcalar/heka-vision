@@ -293,13 +293,13 @@ class Gp7Connector:
         data = None
         self.__connect()
         try:
-            convertedVal = binascii.hexlify(int.to_bytes(inputAddr,1,byteorder='little', signed=True), ' ').decode()
+            convertedVal = binascii.hexlify(int.to_bytes(inputAddr,2,byteorder='little', signed=False), ' ').decode()
             cmd = readIoSignal.replace('{VAL}', convertedVal)
             
             self._socket.sendall(bytearray.fromhex(cmd))
             retData = self._socket.recv(1024)
             
-            data = int.from_bytes([ retData[32] ], 'little', signed=True)
+            data = int.from_bytes([ retData[32] ], 'little', signed=False)
         except Exception as e:
             print(e)
 
@@ -307,6 +307,56 @@ class Gp7Connector:
         self._busyByCommand = False
 
         return data
+
+
+    def readExternalIo(self, inputAddr, bitDivider):
+        self.__waitForAvailable()
+
+        self._busyByCommand = True
+        data = None
+        self.__connect()
+        try:
+            convertedVal = binascii.hexlify(int.to_bytes(inputAddr,2,byteorder='little', signed=False), ' ').decode()
+            cmd = readIoSignal.replace('{VAL}', convertedVal)
+            
+            self._socket.sendall(bytearray.fromhex(cmd))
+            retData = self._socket.recv(1024)
+            
+            dataByte = int.from_bytes([ retData[32] ], 'little', signed=False)
+            data = (dataByte & bitDivider)
+        except Exception as e:
+            print(e)
+
+        self.__disconnect()
+        self._busyByCommand = False
+
+        return data
+
+
+    def writeExternalIo(self, outputAddr, outputValue):
+        self.__waitForAvailable()
+        res = False
+        self._busyByCommand = True
+        self.__connect()
+        try:
+            # parse address
+            convertedPrm = binascii.hexlify(int.to_bytes(outputAddr,2,byteorder='little', signed=False), ' ').decode()
+            cmd = writeIoSignal.replace('{PRM}', convertedPrm)
+
+            # parse value
+            convertedVal = binascii.hexlify(int.to_bytes(outputValue,1,byteorder='little', signed=False), ' ').decode()
+            cmd = cmd.replace('{VAL}', convertedVal)
+            
+            self._socket.sendall(bytearray.fromhex(cmd))
+            retData = self._socket.recv(1024)
+            
+            res = retData[25] == 0
+        except Exception as e:
+            print(e)
+
+        self.__disconnect()
+        self._busyByCommand = False
+        return res
 
 
     def readStatus(self):

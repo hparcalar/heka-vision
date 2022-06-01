@@ -13,6 +13,10 @@ if __name__ == "__main__":
     app = QGuiApplication(sys.argv)
     engine = QQmlApplicationEngine()
 
+    app.setOrganizationName("Heka Robotics")
+    app.setOrganizationDomain("hekarobotics.com")
+    app.setApplicationName("Heka Vision")
+
     backManager = BackendManager()
     engine.rootContext().setContextProperty("backend", backManager)
 

@@ -20,14 +20,11 @@ class TestManager:
         self._activeStepIndex = self._activeStepIndex + 1
         try:
             if len(self._product['steps']) <= self._activeStepIndex:
-                # try:
-                #     safetyHomeData = self._comConfig['rbToSafetyHome'].split(':')
-                #     self.__writeToRobot(safetyHomeData, int(safetyHomeData[2]))
-                # except:
-                #     pass
                 self.__moveRobotToHome()
                 self._robot.writeBit(3,0)
                 self._backend.raiseAllStepsFinished()
+                self.openHatch()
+
                 self._isTestRunning = False
                 self._stepStatus = False
                 self._activeStepIndex = 0
@@ -53,7 +50,7 @@ class TestManager:
                 self._camera = Cvx400(self._comConfig['cameraIp'], int(self._comConfig['cameraPort']))
                 self._updateMaterials = False
             except Exception as e:
-                print(e)
+                pass
 
 
     def __checkAliveStatus(self) -> bool:
@@ -162,9 +159,12 @@ class TestManager:
     def __productSensorIsFull(self) -> bool:
         if not self._robot:
             return False
-        
-        return self._robot.readExternalIo(3) == 1
 
+        retData = self._robot.readExternalIo(2, 1)
+        
+        return (not retData == None) and retData != 0
+
+    
     def stopTest(self):
         self._stepStatus = False
         self._isTestRunning = False
@@ -221,6 +221,9 @@ class TestManager:
             self._isTestRunning = True
             self._product = productData
             self._activeStepIndex = 0
+
+            self.setVacuum(1)
+            self.closeHatch()
             
             if not self.__prepareRobotToStart():
                 if self._isTestRunning == False:
@@ -235,9 +238,36 @@ class TestManager:
 
     def setRobotHold(self, status):
         self._robot.setHoldStatus(status)
+        self.openHatch()
 
         if status:
             self.stopTest()
+
+
+    def checkHatchIsClosed(self, status):
+        retData = self._robot.readExternalIo(2, 4)
+        return (not retData == None) and retData != 0
+
+
+    def openHatch(self) -> bool:
+        #pass
+        self._robot.writeExternalIo(2702, 0) # disable down signal
+        sleep(0.1)
+        self.setVacuum(0)
+        sleep(0.2)
+        return self._robot.writeExternalIo(2701, 1) # enable up signal
+
+    
+    def closeHatch(self) -> bool:
+        #pass
+        self._robot.writeExternalIo(2701, 0) # disable up signal
+        sleep(0.1)
+        return self._robot.writeExternalIo(2702, 1) # enable up signal
+        
+
+    def setVacuum(self, status: int) -> bool:
+        #pass
+        self._robot.writeExternalIo(2703, status)
 
 
     def startCurrentStep(self):

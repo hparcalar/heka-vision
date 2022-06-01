@@ -24,11 +24,6 @@ class BackendManager(QObject):
         self.runSensorChecker = False
         self.sensorChecker = None
 
-        # test case for dir manager
-        self.dirManager.setDirectories(['/home/hakan/FtpContent/VisionDB/XG-X00DEMO_00_01_FC_C2_9C_82/SD1/0002/Image',
-            '/home/hakan/FtpContent/VisionDB/XG-X00DEMO_00_01_FC_C2_9C_82/SD1/0003/Image'])
-        self.dirManager.startListeners()
-
 
     def initDb(self):
         create_tables()
@@ -79,7 +74,7 @@ class BackendManager(QObject):
     getLiveStatus = Signal(str)
     getStartPosArrived = Signal()
     getProductSensor = Signal(bool)
-    getNewImageResult = Signal(str)
+    getNewImageResult = Signal(str, int)
     # endregion
     
     # region THR FUNCTIONS
@@ -111,9 +106,9 @@ class BackendManager(QObject):
     def raiseStartPosArrived(self):
         self.getStartPosArrived.emit()
 
-    def raiseNewImageResult(self, recipeDirectory, fullImagePath):
+    def raiseNewImageResult(self, recipeDirectory, fullImagePath, recipeId):
         if fullImagePath and len(fullImagePath) > 0:
-            self.getNewImageResult.emit(fullImagePath)
+            self.getNewImageResult.emit(fullImagePath, recipeId)
 
     def __stopListeners(self):
         try:
@@ -194,6 +189,18 @@ class BackendManager(QObject):
     @Slot()
     def setRobotHold(self):
         self.testManager.setRobotHold(True)
+
+
+    @Slot()
+    def openHatch(self):
+        #pass
+        self.testManager.openHatch()
+
+    
+    @Slot()
+    def closeHatch(self):
+        #pass
+        self.testManager.closeHatch()
 
 
     def __resetTest(self, productId):
@@ -322,6 +329,21 @@ class BackendManager(QObject):
                 productId = prList[0]['id']
 
         data = getProduct(productId)
+        if data and data['id'] > 0:
+            rcpArr = []
+            dirArr = []
+            for rcp in data['recipes']:
+                if rcp['imageDir'] and len(str(rcp['imageDir'])) > 0:
+                    rcpArr.append(rcp['id'])
+                    dirArr.append(rcp['imageDir'])
+
+            self.dirManager.stopListeners()
+
+            self.dirManager.setRecipes(rcpArr)
+            self.dirManager.setDirectories(dirArr)
+
+            self.dirManager.startListeners()
+
         self.getProductInfo.emit(json.dumps(data))
 
 

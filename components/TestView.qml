@@ -248,6 +248,10 @@ Item{
                 d.liveResult = false;
             });
 
+            activeProduct.sections.forEach(d => {
+                d.images = [];
+            });
+
             bindTestSteps();
             bindGridSchema();
         } catch (error) {
@@ -287,6 +291,14 @@ Item{
         }
     }
 
+    function openHatch(){
+        backend.openHatch();
+    }
+
+    function closeHatch(){
+        backend.closeHatch();
+    }
+
     function saveTestResult(testResult){
         if (activeProduct != null && activeProduct.id > 0){
             const foundStep = activeProduct.steps.find(d => d.id == runningStepId);
@@ -298,6 +310,7 @@ Item{
                 shiftId: activeShift && activeShift.id > 0 ? activeShift.id : null,
                 employeeId: activeEmployee && activeEmployee.id > 0 ? activeEmployee.id : null,
                 isOk: testResult,
+                images: [] // all parts images will be saved
             }));
         }
     }
@@ -483,8 +496,21 @@ Item{
             btnReset.enabled = isFullByProduct;
         }
 
-        function onGetNewImageResult(fullImagePath){
-            console.log(fullImagePath);
+        function onGetNewImageResult(fullImagePath, recipeId){
+            try {
+                const properStep = activeProduct.steps.find(d => d.camRecipeId == recipeId);
+                if (properStep && properStep.sectionId > 0){
+                    const properSection = activeProduct.sections.find(d => d.id == properStep.sectionId);
+                    if (properSection){
+                        if (!properSection.images || properSection.images == null)
+                            properSection.images = [];
+                        properSection.images.push(fullImagePath);
+                        drawParts();
+                    }
+                }
+            } catch (error) {
+                
+            }
         }
     }
 
@@ -749,7 +775,7 @@ Item{
                             if (silentCardNo.length > 0)
                                 silentReadSeq = (silentReadSeq + diffMs) / silentCardNo.length;
 
-                            if (event.text)
+                            if (event.text && event.text != '\r\n' && event.text != '\r' && event.text != '\n')
                                 silentCardNo += event.text;
 
                             silentDate = dtKey;
@@ -1065,7 +1091,7 @@ Item{
 
             // PARTS CONTAINER
             Rectangle{
-                Layout.preferredWidth: parent.width / 3
+                Layout.preferredWidth: parent.width * 0.27
                 Layout.fillHeight: true
                 Layout.leftMargin: 5
                 Layout.bottomMargin: 5
@@ -1101,7 +1127,7 @@ Item{
 
                             // PRODUCT INFORMATION
                             Rectangle{
-                                Layout.preferredWidth: parent.width * 0.4
+                                Layout.preferredWidth: parent.width * 0.3
                                 Layout.fillHeight: true
                                 color: "transparent"
 
@@ -1203,6 +1229,81 @@ Item{
                                             // wrapMode: Label.Wrap
                                             // style: Text.Outline
                                             // styleColor:'#555'
+                                        }
+                                    }
+                                }
+                            }
+
+                            // HATCH CONTROL BUTTONS
+                            Rectangle{
+                                Layout.preferredWidth: parent.width * 0.12
+                                Layout.fillHeight: true
+                                color: "transparent"
+
+                                ColumnLayout{
+                                    anchors.fill: parent
+                                    spacing: 2
+
+                                    Button{
+                                        text: "KAPAK AÇ"
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: parent.height * 0.5
+                                        onClicked: function(){
+                                            openHatch();
+                                        }
+                                        Layout.alignment: Qt.AlignRight | Qt.AlignTop
+                                        id:btnOpenHatch
+                                        padding: 10
+                                        contentItem:Label{
+                                            anchors.fill: parent
+                                            minimumPointSize: 5
+                                            font.pointSize: 14
+                                            font.bold: false
+                                            fontSizeMode: Text.Fit
+                                            horizontalAlignment: Text.AlignHCenter
+                                            verticalAlignment: Text.AlignVCenter
+                                            text: "KAPAK AÇ"
+                                        }
+                                        palette.buttonText: "#333"
+                                        background: Rectangle {
+                                            border.width: btnOpenHatch.activeFocus ? 2 : 1
+                                            border.color: "#333"
+                                            gradient: Gradient {
+                                                GradientStop { position: 0 ; color: btnOpenHatch.pressed ? "#AAA" : "#76d11b" }
+                                                GradientStop { position: 1 ; color: btnOpenHatch.pressed ? "#76d11b" : "#AAA" }
+                                            }
+                                        }
+                                    }
+
+                                    Button{
+                                        text: ""
+                                        Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        id: btnCloseHatch
+                                        onClicked: function(){
+                                            closeHatch();
+                                        }
+                                        enabled: true
+                                        Layout.alignment: Qt.AlignRight | Qt.AlignTop
+                                        padding: 10
+                                        contentItem:Label{
+                                            anchors.fill: parent
+                                            minimumPointSize: 5
+                                            font.pointSize: 14
+                                            font.bold: false
+                                            fontSizeMode: Text.Fit
+                                            horizontalAlignment: Text.AlignHCenter
+                                            verticalAlignment: Text.AlignVCenter
+                                            text: "KAPAK KAPAT"
+                                        }
+                                        palette.buttonText: "#fff"
+                                        background: Rectangle {
+                                            border.width: btnCloseHatch.activeFocus ? 2 : 1
+                                            border.color: "#333"
+                                            gradient: Gradient {
+                                                GradientStop { position: 0 ; color: btnCloseHatch.enabled ? (btnCloseHatch.pressed ? "red" : "#dedede") : "#666" }
+                                                GradientStop { position: 1 ; color: btnCloseHatch.enabled ? (btnCloseHatch.pressed ? "#dedede" : "red") : "#999" }
+                                            }
                                         }
                                     }
                                 }
@@ -1449,7 +1550,7 @@ Item{
                         }
                     }
 
-                    // SECOND ROW (PRODUCT IMAGE)
+                    // SECOND ROW (PRODUCT SECTION GRID)
                     Rectangle{
                         Layout.fillWidth: true
                         Layout.preferredHeight: 150

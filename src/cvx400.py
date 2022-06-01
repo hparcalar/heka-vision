@@ -84,7 +84,7 @@ class Cvx400:
                 fRes = True
             sck.close()
         except Exception as e:
-            print(e)
+            # print(e)
             fRes = False
 
         return fRes
@@ -102,7 +102,7 @@ class Cvx400:
             result, = self._proxy.read([('@0x68/0x01/0x69=(SINT)1','@0x68/0x01/0x69')],0)
             fRes = True
         except Exception as e:
-            print(e)
+            # print(e)
             fRes = False
         
         self.__disconnect()
