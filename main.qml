@@ -21,6 +21,8 @@ ApplicationWindow {
         return true;
     }
 
+    FontLoader { id: customFont; source:'assets/ttl.ttf' }
+
     // COMPONENTS
     Component{
         id: cmpTestView
@@ -87,19 +89,21 @@ ApplicationWindow {
 
                     // APPLICATION TITLE
                     Rectangle{
-                        Layout.preferredWidth: parent.width / 3
+                        // Layout.preferredWidth: parent.width / 3
+                        anchors.fill: parent
                         height:100
                         color: "transparent"
                         
                         Text {
+                            font.family: customFont.name
                             width: parent.width
-                            anchors.top: parent.top
-                            anchors.topMargin: 20
+                            anchors.centerIn: parent
+                            horizontalAlignment: Text.AlignHCenter
                             color:"#fefefe"
                             padding: 10
-                            font.pixelSize: 24
+                            font.pixelSize: 26
                             font.bold: true
-                            text: "Klima Gövde-Kapak Kalite Sistemi"
+                            text: "KLİMA GÖVDE KALİTE SİSTEMİ"
                         }
                     }
 

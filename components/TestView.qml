@@ -11,6 +11,8 @@ import "controls"
 Item{
     id: testViewFormContainer
 
+    FontLoader { id: customFont; source:'../assets/ttl.ttf' }
+
     property string sectionList
     property int loginState: 0
     property int runningStepId: -1
@@ -19,6 +21,11 @@ Item{
     property bool isFullByProduct: false
     property bool selectionIsValid: false
     property string selectionValidMsg : ''
+    property bool robotCommOk: false
+    property bool camCommOk: false
+    property int lastTestStatus: 0
+    property string showingCaptureImage: ''
+    property bool robotHoldStatus: false
 
     property string silentCardNo: ""
     property date silentDate: new Date()
@@ -187,6 +194,10 @@ Item{
         bindGridSchema();
     }
 
+    function showCaptureImage(camImage){
+        backend.requestCaptureImage(camImage);
+    }
+
     function showProductList(){
         var popup = cmpProductList.createObject(testViewFormContainer, {});
         popup.open();
@@ -262,6 +273,7 @@ Item{
             
         }
 
+        lastTestStatus = 0;
         btnReset.enabled = false;
         backend.resetTest(activeProduct.id);
     }
@@ -407,6 +419,9 @@ Item{
                 else
                     txtCameraStatus.color = "red";
 
+                robotCommOk = resObj.Robot;
+                camCommOk = resObj.Camera;
+
                 txtRobotStatus.text = resObj.Robot == true ? ': OK' : ': NOK';
                 txtCameraStatus.text = resObj.Camera == true ? ': OK' : ': NOK';
             }
@@ -446,9 +461,12 @@ Item{
             btnServoOn.enabled = false;
             btnStart.enabled = false;
 
-            errorDialog.text = data;
-            errorDialog.visible = true;
             testRunning = false;
+
+            if (errorDialog.visible == false){
+                errorDialog.text = data;
+                errorDialog.visible = true;
+            }
         }
 
         function onGetStepResult(data){
@@ -464,6 +482,7 @@ Item{
                     // save fault step result before reset
                     if (stepRes.Result == false){
                         saveTestResult(false);
+                        lastTestStatus = 2;
                         // testRunning = false;
                     }
 
@@ -484,6 +503,10 @@ Item{
 
         function onGetAllStepsFinished(){
             saveTestResult(true);
+
+            if (lastTestStatus != 2) // if any error doesnt exist during all steps
+                lastTestStatus = 1;
+
             btnReset.enabled = true;
             btnMasterJobCall.enabled = false;
             btnServoOn.enabled = false;
@@ -501,6 +524,13 @@ Item{
             if (dataObj){
                 txtTotalTestCount.text = ': ' + dataObj.Live.totalCount.toString();
                 txtTotalFaultCount.text = ': ' + dataObj.Live.faultCount.toString();
+                txtTotalOkCount.text = ': ' + (dataObj.Live.totalCount - dataObj.Live.faultCount).toString();
+                const okCount = (dataObj.Live.totalCount - dataObj.Live.faultCount);
+                let oeeValue = parseInt((okCount / (dataObj.Live.totalCount * 1.0)) * 100);
+                if (!(oeeValue > 0))
+                    oeeValue = 0;
+                
+                oeeSlider.value = oeeValue;
 
                 if (dataObj.Steps){
                     dataObj.Steps.forEach(d => {
@@ -552,6 +582,19 @@ Item{
                 }
             } catch (error) {
                 
+            }
+        }
+
+        function onGetCaptureImage(captureImage){
+            if (captureImage && captureImage.length > 0){
+                showingCaptureImage = captureImage;
+                popupCaptureImage.open();
+            }
+        }
+
+        function onGetRobotHoldChanged(holdStatus){
+            if (holdStatus != null){
+                robotHoldStatus = holdStatus;
             }
         }
     }
@@ -704,7 +747,7 @@ Item{
                         id: btnLoginApply
                         text: "GİRİŞ"
                         onClicked: function(){
-                            if (txtLoginPassword.text == '8910'){
+                            if (txtLoginPassword.text.indexOf('0006013789') > -1 || txtLoginPassword.text == '8910'){
                                 popupAuth.close();
                                 backend.requestShowSettings();
                             }
@@ -936,6 +979,100 @@ Item{
         }
     }
 
+    Popup {
+        id: popupCaptureImage
+        modal: true
+        dim: true
+        Overlay.modal: Rectangle {
+            color: "#aacfdbe7"
+        }
+
+        anchors.centerIn: parent
+        width: parent.width * 0.95
+        height: parent.height * 0.95
+
+        enter: Transition {
+            NumberAnimation { properties: "opacity"; from: 0; to: 1 }
+        }
+
+        exit: Transition {
+            NumberAnimation { properties: "opacity"; from: 1; to: 0 }
+        }
+
+        ColumnLayout{
+            anchors.fill: parent
+
+            Label{
+                Layout.fillWidth: true
+                Layout.preferredHeight: 40
+                Layout.alignment: Qt.AlignTop
+                horizontalAlignment: Text.AlignHCenter
+                text:'Tespit Detayları'
+                font.bold: true
+                font.pixelSize: 24
+            }
+
+            Rectangle{
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                color: "transparent"
+
+                Image {
+                    anchors.centerIn: parent
+                    sourceSize.height: parent.height
+                    fillMode: Image.PreserveAspectFit
+                    source: showingCaptureImage
+                }
+            }
+
+            Rectangle{
+                Layout.fillWidth: true
+                Layout.preferredHeight: 50
+                Layout.alignment: Qt.AlignBottom
+                color: "transparent"
+
+                RowLayout{
+                    anchors.fill: parent
+
+                    Button{
+                        id: btnCaptureDialogClose
+                        onClicked: function(){
+                            popupCaptureImage.close();
+                        }
+                        text: "KAPAT"
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        font.pixelSize: 24
+                        font.bold: true
+                        padding: 5
+                        leftPadding: 50
+                        palette.buttonText: "#333"
+                        background: Rectangle {
+                            border.width: btnCaptureDialogClose.activeFocus ? 2 : 1
+                            border.color: "#333"
+                            radius: 4
+                            gradient: Gradient {
+                                GradientStop { position: 0 ; color: btnCaptureDialogClose.pressed ? "#AAA" : "#dedede" }
+                                GradientStop { position: 1 ; color: btnCaptureDialogClose.pressed ? "#dedede" : "#AAA" }
+                            }
+                        }
+
+                        Image {
+                            anchors.top: btnCaptureDialogClose.top
+                            anchors.left: btnCaptureDialogClose.left
+                            anchors.topMargin: 10
+                            anchors.leftMargin: 10
+                            sourceSize.width: 50
+                            sourceSize.height: 30
+                            fillMode: Image.Stretch
+                            source: "../assets/back.png"
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     MessageDialog {
         id: errorDialog
         title: "HATA"
@@ -993,6 +1130,7 @@ Item{
                     color: "#326195"
 
                     Text {
+                        font.family: customFont.name
                         width: parent.width
                         height: parent.height
                         horizontalAlignment: Text.AlignHCenter
@@ -1026,6 +1164,13 @@ Item{
                                 sourceSize.height: parent.height
                                 fillMode: Image.Stretch
                                 source: modelData
+
+                                MouseArea{
+                                    anchors.fill: parent
+                                    onClicked: function(){
+                                        showCaptureImage(parent.source);
+                                    }
+                                }
                             }
                         }
                     }
@@ -1063,6 +1208,7 @@ Item{
                     }
 
                     Text {
+                        font.family: customFont.name
                         width: parent.width
                         height: parent.height
                         horizontalAlignment: Text.AlignLeft
@@ -1099,6 +1245,7 @@ Item{
                     color: "transparent"
 
                     Text {
+                        font.family: customFont.name
                         width: parent.width
                         height: parent.height
                         horizontalAlignment: Text.AlignHCenter
@@ -1119,7 +1266,7 @@ Item{
     Gradient {
         id: gradientProduct
         GradientStop { position: 0.0; color: "#9dd2fa" }
-        GradientStop { position: 1.0; color: "#326195" }
+        GradientStop { position: 1.0; color: "#548ac4" }
     }
 
     // VIEW LAYOUT
@@ -1180,7 +1327,7 @@ Item{
                                         id: btnProductCode
                                         onClicked: showProductList()
                                         Layout.fillWidth: true
-                                        padding: 5
+                                        padding: 2
                                         text: ""
                                         background: Rectangle{
                                             border.width: btnProductCode.activeFocus ? 2 : 1
@@ -1197,7 +1344,8 @@ Item{
                                             text:"Ürün : "
                                             anchors.fill: parent
                                             minimumPointSize: 5
-                                            font.pointSize: 16
+                                            font.family: customFont.name
+                                            font.pointSize: 14
                                             font.bold: true
                                             fontSizeMode: Text.Fit
                                             horizontalAlignment: Text.AlignHCenter
@@ -1214,7 +1362,7 @@ Item{
                                         onClicked: function(){
                                             popupCardRead.open();
                                         }//showEmployeeList()
-                                        padding: 5
+                                        padding: 2
                                         text: ""
                                         background: Rectangle{
                                             border.width: btnOperatorName.activeFocus ? 2 : 1
@@ -1230,8 +1378,9 @@ Item{
                                             color:"#333"
                                             text:"Operatör: "
                                             anchors.fill: parent
+                                            font.family: customFont.name
                                             minimumPointSize: 5
-                                            font.pointSize: 16
+                                            font.pointSize: 14
                                             font.bold: false
                                             fontSizeMode: Text.Fit
                                             horizontalAlignment: Text.AlignHCenter
@@ -1246,7 +1395,7 @@ Item{
                                         id: btnShiftCode
                                         onClicked: showShiftist()
                                         Layout.fillWidth: true
-                                        padding: 5
+                                        padding: 2
                                         text: ""
                                         background: Rectangle{
                                             border.width: btnShiftCode.activeFocus ? 2 : 1
@@ -1262,8 +1411,9 @@ Item{
                                             color:"#333"
                                             text:"Vardiya: "
                                             anchors.fill: parent
+                                            font.family: customFont.name
                                             minimumPointSize: 5
-                                            font.pointSize: 16
+                                            font.pointSize: 14
                                             font.bold: false
                                             fontSizeMode: Text.Fit
                                             horizontalAlignment: Text.AlignHCenter
@@ -1278,7 +1428,7 @@ Item{
 
                             // HATCH CONTROL BUTTONS
                             Rectangle{
-                                visible: testRunning == false
+                                visible: testRunning == false && robotCommOk == true
                                 Layout.preferredWidth: parent.width * 0.12
                                 Layout.fillHeight: true
                                 color: "transparent"
@@ -1288,7 +1438,7 @@ Item{
                                     spacing: 2
 
                                     Button{
-                                        text: "KAPAK AÇ"
+                                        text: ""
                                         Layout.fillWidth: true
                                         Layout.preferredHeight: parent.height * 0.5
                                         onClicked: function(){
@@ -1300,21 +1450,29 @@ Item{
                                         contentItem:Label{
                                             anchors.fill: parent
                                             minimumPointSize: 5
+                                            anchors.leftMargin: 20
                                             font.pointSize: 14
-                                            font.bold: false
+                                            font.bold: true
                                             fontSizeMode: Text.Fit
-                                            horizontalAlignment: Text.AlignHCenter
+                                            horizontalAlignment: Text.AlignLeft
                                             verticalAlignment: Text.AlignVCenter
-                                            text: "KAPAK AÇ"
+                                            text: ""
                                         }
                                         palette.buttonText: "#333"
                                         background: Rectangle {
                                             border.width: btnOpenHatch.activeFocus ? 2 : 1
                                             border.color: "#333"
                                             gradient: Gradient {
-                                                GradientStop { position: 0 ; color: btnOpenHatch.pressed ? "#AAA" : "#76d11b" }
-                                                GradientStop { position: 1 ; color: btnOpenHatch.pressed ? "#76d11b" : "#AAA" }
+                                                GradientStop { position: 0 ; color: btnOpenHatch.pressed ? "#dedede" : "#afafaf" }
+                                                GradientStop { position: 1 ; color: btnOpenHatch.pressed ? "#afafaf" : "#dedede" }
                                             }
+                                        }
+
+                                        Image {
+                                            anchors.centerIn: parent
+                                            sourceSize.height: parent.height * 0.8
+                                            fillMode: Image.PreserveAspectFit
+                                            source: "../assets/arrow_up.png"
                                         }
                                     }
 
@@ -1333,20 +1491,28 @@ Item{
                                             anchors.fill: parent
                                             minimumPointSize: 5
                                             font.pointSize: 14
-                                            font.bold: false
+                                            anchors.leftMargin: 20
+                                            font.bold: true
                                             fontSizeMode: Text.Fit
-                                            horizontalAlignment: Text.AlignHCenter
+                                            horizontalAlignment: Text.AlignLeft
                                             verticalAlignment: Text.AlignVCenter
-                                            text: "KAPAK KAPAT"
+                                            text: ""
                                         }
                                         palette.buttonText: "#fff"
                                         background: Rectangle {
                                             border.width: btnCloseHatch.activeFocus ? 2 : 1
                                             border.color: "#333"
                                             gradient: Gradient {
-                                                GradientStop { position: 0 ; color: btnCloseHatch.enabled ? (btnCloseHatch.pressed ? "red" : "#dedede") : "#666" }
-                                                GradientStop { position: 1 ; color: btnCloseHatch.enabled ? (btnCloseHatch.pressed ? "#dedede" : "red") : "#999" }
+                                                GradientStop { position: 0 ; color: btnCloseHatch.pressed ? "#dedede" : "#afafaf" }
+                                                GradientStop { position: 1 ; color: btnCloseHatch.pressed ? "#afafaf" : "#dedede" }
                                             }
+                                        }
+
+                                        Image {
+                                            anchors.centerIn: parent
+                                            sourceSize.height: parent.height * 0.8
+                                            fillMode: Image.PreserveAspectFit
+                                            source: "../assets/arrow_down.png"
                                         }
                                     }
                                 }
@@ -1382,6 +1548,7 @@ Item{
                                                 padding: 10
                                                 contentItem:Label{
                                                     anchors.fill: parent
+                                                    font.family: customFont.name
                                                     minimumPointSize: 5
                                                     font.pointSize: 14
                                                     font.bold: false
@@ -1412,6 +1579,7 @@ Item{
                                                 contentItem:Label{
                                                     anchors.fill: parent
                                                     minimumPointSize: 5
+                                                    font.family: customFont.name
                                                     font.pointSize: 14
                                                     font.bold: false
                                                     fontSizeMode: Text.Fit
@@ -1442,6 +1610,7 @@ Item{
                                                     anchors.fill: parent
                                                     minimumPointSize: 5
                                                     font.pointSize: 14
+                                                    font.family: customFont.name
                                                     font.bold: false
                                                     fontSizeMode: Text.Fit
                                                     horizontalAlignment: Text.AlignHCenter
@@ -1472,6 +1641,7 @@ Item{
                                                     minimumPointSize: 5
                                                     font.pointSize: 14
                                                     font.bold: false
+                                                    font.family: customFont.name
                                                     fontSizeMode: Text.Fit
                                                     horizontalAlignment: Text.AlignHCenter
                                                     verticalAlignment: Text.AlignVCenter
@@ -1495,6 +1665,7 @@ Item{
                                             anchors.fill: parent
                                             minimumPointSize: 5
                                             font.pointSize: 22
+                                            font.family: customFont.name
                                             font.bold: true
                                             fontSizeMode: Text.Fit
                                             horizontalAlignment: Text.AlignHCenter
@@ -1545,6 +1716,7 @@ Item{
                                                     anchors.fill: parent
                                                     anchors.topMargin: 35
                                                     minimumPointSize: 5
+                                                    font.family: customFont.name
                                                     font.pointSize: 14
                                                     font.bold: false
                                                     fontSizeMode: Text.Fit
@@ -1591,19 +1763,20 @@ Item{
                                                     anchors.topMargin: 30
                                                     minimumPointSize: 5
                                                     font.pointSize: 14
+                                                    font.family: customFont.name
                                                     font.bold: false
                                                     fontSizeMode: Text.Fit
                                                     horizontalAlignment: Text.AlignHCenter
                                                     verticalAlignment: Text.AlignVCenter
-                                                    text: "STOP"
+                                                    text: robotHoldStatus == true ? "HOLD OFF" : "HOLD ON"
                                                 }
                                                 palette.buttonText: "#fff"
                                                 background: Rectangle {
                                                     border.width: btnEmgStop.activeFocus ? 2 : 1
                                                     border.color: "#333"
                                                     gradient: Gradient {
-                                                        GradientStop { position: 0 ; color: btnEmgStop.enabled ? (btnEmgStop.pressed ? "red" : "#dedede") : "#666" }
-                                                        GradientStop { position: 1 ; color: btnEmgStop.enabled ? (btnEmgStop.pressed ? "#dedede" : "red") : "#999" }
+                                                        GradientStop { position: 0 ; color: btnEmgStop.enabled ? (btnEmgStop.pressed ? (robotHoldStatus == true ? "green" : "red") : "#dedede") : "#666" }
+                                                        GradientStop { position: 1 ; color: btnEmgStop.enabled ? (btnEmgStop.pressed ? "#dedede" : (robotHoldStatus == true ? "green" : "red")) : "#999" }
                                                     }
                                                 }
 
@@ -1729,6 +1902,7 @@ Item{
                                         color: "#efefef"
                                         minimumPointSize: 5
                                         font.pointSize: 12
+                                        font.family: customFont.name
                                         font.bold: true
                                         fontSizeMode: Text.Fit
                                         horizontalAlignment: Text.AlignHCenter
@@ -1884,11 +2058,12 @@ Item{
                                                 Layout.preferredWidth: parent.width * 0.8
                                                 horizontalAlignment: Text.AlignLeft
                                                 color:"#326195"
-                                                padding: 2
+                                                padding: 1
                                                 leftPadding: 10
+                                                font.family: customFont.name
                                                 // font.pixelSize: 24
                                                 minimumPointSize: 5
-                                                font.pointSize: 14
+                                                font.pointSize: 12
                                                 fontSizeMode: Text.Fit
                                                 font.bold: true
                                                 text: "Robot Haberleşme"
@@ -1899,10 +2074,11 @@ Item{
                                                 Layout.fillWidth: true
                                                 horizontalAlignment: Text.AlignRight
                                                 color:"#32a852"
-                                                padding: 2
+                                                font.family: customFont.name
+                                                padding: 1
                                                 rightPadding: 10
                                                 minimumPointSize: 5
-                                                font.pointSize: 14
+                                                font.pointSize: 12
                                                 fontSizeMode: Text.Fit
                                                 font.bold: true
                                                 text: ""
@@ -1923,10 +2099,11 @@ Item{
                                                 Layout.preferredWidth: parent.width * 0.8
                                                 horizontalAlignment: Text.AlignLeft
                                                 color:"#326195"
-                                                padding: 2
+                                                padding: 1
                                                 leftPadding: 10
+                                                font.family: customFont.name
                                                 minimumPointSize: 5
-                                                font.pointSize: 14
+                                                font.pointSize: 12
                                                 fontSizeMode: Text.Fit
                                                 font.bold: true
                                                 text: "Kamera Haberleşme"
@@ -1937,10 +2114,11 @@ Item{
                                                 Layout.fillWidth: true
                                                 horizontalAlignment: Text.AlignRight
                                                 color:"#32a852"
-                                                padding: 2
+                                                font.family: customFont.name
+                                                padding: 1
                                                 rightPadding: 10
                                                 minimumPointSize: 5
-                                                font.pointSize: 14
+                                                font.pointSize: 12
                                                 fontSizeMode: Text.Fit
                                                 font.bold: true
                                                 text: ""
@@ -1961,10 +2139,11 @@ Item{
                                                 Layout.preferredWidth: parent.width * 0.8
                                                 horizontalAlignment: Text.AlignLeft
                                                 color:"#326195"
-                                                padding: 2
+                                                padding: 1
                                                 leftPadding: 10
                                                 minimumPointSize: 5
-                                                font.pointSize: 14
+                                                font.family: customFont.name
+                                                font.pointSize: 12
                                                 fontSizeMode: Text.Fit
                                                 font.bold: true
                                                 text: "Acil Devresi"
@@ -1974,10 +2153,11 @@ Item{
                                                 Layout.fillWidth: true
                                                 horizontalAlignment: Text.AlignRight
                                                 color: "red" //"#32a852"
-                                                padding: 2
+                                                padding: 1
                                                 rightPadding: 10
                                                 minimumPointSize: 5
-                                                font.pointSize: 14
+                                                font.family: customFont.name
+                                                font.pointSize: 12
                                                 fontSizeMode: Text.Fit
                                                 font.bold: true
                                                 text: ": NOK"
@@ -1998,10 +2178,11 @@ Item{
                                                 Layout.preferredWidth: parent.width * 0.8
                                                 horizontalAlignment: Text.AlignLeft
                                                 color:"#326195"
-                                                padding: 2
+                                                padding: 1
                                                 leftPadding: 10
                                                 minimumPointSize: 5
-                                                font.pointSize: 14
+                                                font.family: customFont.name
+                                                font.pointSize: 12
                                                 fontSizeMode: Text.Fit
                                                 font.bold: true
                                                 text: "Yazıcı"
@@ -2011,10 +2192,11 @@ Item{
                                                 Layout.fillWidth: true
                                                 horizontalAlignment: Text.AlignRight
                                                 color: "red" //"#32a852"
-                                                padding: 2
+                                                padding: 1
                                                 rightPadding: 10
                                                 minimumPointSize: 5
-                                                font.pointSize: 14
+                                                font.family: customFont.name
+                                                font.pointSize: 12
                                                 fontSizeMode: Text.Fit
                                                 font.bold: true
                                                 text: ": NOK"
@@ -2033,10 +2215,10 @@ Item{
                                 border.color: "#888"
                                 border.width: 1
 
-                                gradient: Gradient {
-                                    GradientStop { position: 0.0; color: "#9dd2fa" }
-                                    GradientStop { position: 1.0; color: "#326195" }
-                                }
+                                // gradient: Gradient {
+                                //     GradientStop { position: 0.0; color: "#9dd2fa" }
+                                //     GradientStop { position: 1.0; color: "#326195" }
+                                // }
 
                                 RowLayout{
                                     anchors.fill: parent
@@ -2052,8 +2234,8 @@ Item{
                                             anchors.top: parent.top
                                             anchors.right: parent.right
                                             height: parent.height * 0.5
-                                            anchors.topMargin: 5
-                                            spacing:5
+                                            anchors.topMargin: 2
+                                            spacing:0
 
                                             // TOTAL TEST COUNT
                                             Rectangle{
@@ -2070,10 +2252,11 @@ Item{
                                                         Layout.preferredWidth: parent.width * 0.6
                                                         horizontalAlignment: Text.AlignLeft
                                                         color:"#333"
-                                                        padding: 2
+                                                        padding: 1
+                                                        font.family: customFont.name
                                                         leftPadding: 10
                                                         minimumPointSize: 5
-                                                        font.pointSize: 14
+                                                        font.pointSize: 12
                                                         fontSizeMode: Text.Fit
                                                         font.bold: true
                                                         text: "Toplam Test"
@@ -2084,10 +2267,11 @@ Item{
                                                         Layout.preferredWidth: parent.width * 0.4
                                                         horizontalAlignment: Text.AlignLeft
                                                         color:"#333"
-                                                        padding: 2
+                                                        padding: 1
                                                         leftPadding: 10
+                                                        font.family: customFont.name
                                                         minimumPointSize: 5
-                                                        font.pointSize: 14
+                                                        font.pointSize: 12
                                                         fontSizeMode: Text.Fit
                                                         font.bold: true
                                                         text: ": "
@@ -2110,10 +2294,11 @@ Item{
                                                         Layout.preferredWidth: parent.width * 0.6
                                                         horizontalAlignment: Text.AlignLeft
                                                         color:"#333"
-                                                        padding: 2
+                                                        padding: 1
                                                         leftPadding: 10
                                                         minimumPointSize: 5
-                                                        font.pointSize: 14
+                                                        font.pointSize: 12
+                                                        font.family: customFont.name
                                                         fontSizeMode: Text.Fit
                                                         font.bold: true
                                                         text: "Hatalı Adet"
@@ -2124,15 +2309,65 @@ Item{
                                                         Layout.preferredWidth: parent.width * 0.4
                                                         horizontalAlignment: Text.AlignLeft
                                                         color:"#c70c12"
-                                                        padding: 2
+                                                        padding: 1
                                                         leftPadding: 10
+                                                        font.family: customFont.name
                                                         minimumPointSize: 5
-                                                        font.pointSize: 14
+                                                        font.pointSize: 12
                                                         fontSizeMode: Text.Fit
                                                         font.bold: true
                                                         text: ": "
                                                     }
                                                 }
+                                            }
+
+                                             // TOTAL OK COUNT
+                                            Rectangle{
+                                                Layout.fillWidth: true
+                                                Layout.preferredHeight: 30
+                                                color: "transparent"
+                                                Layout.alignment: Qt.AlignTop
+
+                                                RowLayout{
+                                                    anchors.left: parent.left
+                                                    anchors.right: parent.right
+                                                    
+                                                    Text {
+                                                        Layout.preferredWidth: parent.width * 0.6
+                                                        horizontalAlignment: Text.AlignLeft
+                                                        color:"#333"
+                                                        padding: 1
+                                                        leftPadding: 10
+                                                        minimumPointSize: 5
+                                                        font.pointSize: 12
+                                                        font.family: customFont.name
+                                                        fontSizeMode: Text.Fit
+                                                        font.bold: true
+                                                        text: "Hatasız Adet"
+                                                    }
+
+                                                    Text {
+                                                        id: txtTotalOkCount
+                                                        Layout.preferredWidth: parent.width * 0.4
+                                                        horizontalAlignment: Text.AlignLeft
+                                                        color:"#32a852"
+                                                        padding: 1
+                                                        leftPadding: 10
+                                                        font.family: customFont.name
+                                                        minimumPointSize: 5
+                                                        font.pointSize: 12
+                                                        fontSizeMode: Text.Fit
+                                                        font.bold: true
+                                                        text: ": "
+                                                    }
+                                                }
+                                            }
+
+                                            // VIEW BUFFER
+                                            Rectangle{
+                                                color: "transparent"
+                                                Layout.fillHeight: true
+                                                Layout.fillWidth: true
                                             }
                                         }
                                     }
@@ -2155,7 +2390,7 @@ Item{
                                             progressWidth: 10
                                             minValue: 0
                                             maxValue: 100
-                                            progressColor: "#1cad15"
+                                            progressColor: "#2396d9"
                                             trackColor: "#333"
                                             capStyle: Qt.FlatCap
 
@@ -2193,7 +2428,7 @@ Item{
 
                                             Label {
                                                 anchors.centerIn: parent
-                                                anchors.verticalCenterOffset: -20
+                                                anchors.verticalCenterOffset: -10
                                                 rotation: 180
                                                 font.pointSize: 12
                                                 color: "#333"
@@ -2204,15 +2439,16 @@ Item{
 
                                             Label {
                                                 anchors.centerIn: parent
-                                                anchors.verticalCenterOffset: -40
+                                                anchors.verticalCenterOffset: -30
                                                 rotation: 180
                                                 // font.pointSize: 20
                                                 minimumPointSize: 5
-                                                font.pointSize: 16
+                                                font.pointSize: 12
+                                                font.bold: true
                                                 fontSizeMode: Text.Fit
-                                                color: "#fff"
-                                                style: Text.Outline
-                                                styleColor:'#333'
+                                                color: "#2396d9"
+                                                // style: Text.Outline
+                                                // styleColor:'#2396d9'
                                                 text: '%' + Number(oeeSlider.value).toFixed()
                                             }
                                         }                                     
@@ -2220,25 +2456,47 @@ Item{
                                 }
                             }
 
-                            // LIVE TEST STATUS (IN PROGRESS)
+                            // LIVE LAST TEST STATUS
                             Rectangle{
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
+                                color: "black"
 
                                 border.color: "#888"
                                 border.width: 1
 
-                                gradient: Gradient {
-                                    GradientStop { position: 0 ; color: "#dedede" }
-                                    GradientStop { position: 1 ; color: "#AAA" }
+                                // gradient: Gradient {
+                                //     GradientStop { position: 0 ; color: "#dedede" }
+                                //     GradientStop { position: 1 ; color: "#AAA" }
+                                // }
+
+                                AnimatedImage{
+                                    visible: lastTestStatus == 0
+                                    source: "../assets/waiting_for_test.webp"
+                                    anchors.fill: parent
+                                    fillMode: Image.PreserveAspectFit
                                 }
 
                                 Image {
-                                    anchors.fill: parent
+                                    visible: lastTestStatus > 0
+                                    id: resultImage
+                                    anchors.centerIn: parent
                                     anchors.margins: 5
-                                    sourceSize.height: parent.height
+                                    sourceSize.height: 80
                                     fillMode: Image.PreserveAspectFit
-                                    source: '../assets/waiting_test.png'
+                                    source: lastTestStatus == 0 ? '../assets/waiting_for_test.webp' : (lastTestStatus == 1 ? '../assets/ok.png' : '../assets/error.png')
+                                    // RotationAnimator {
+                                    //     id: resultImageRotation
+                                    //     target: resultImage;
+                                    //     from: 0;
+                                    //     to: 360;
+                                    //     duration: 3000
+                                    //     running: lastTestStatus == 0
+                                    //     onFinished: function(){
+                                    //         if (lastTestStatus == 0)
+                                    //             resultImageRotation.start();
+                                    //     }
+                                    // }
                                 }
                             }
                         }

@@ -30,14 +30,6 @@ class TestManager:
         self._activeStepIndex = self._activeStepIndex + 1
         try:
             if len(self._product['steps']) <= self._activeStepIndex:
-                try:
-                    self.__moveRobotToHome()
-                    self._robot.writeBit(3,0)
-                    self._backend.raiseAllStepsFinished()
-                    self.openHatch()
-                    self.__stopBarrierThread()
-                except:
-                    pass
 
                 self._isTestRunning = False
                 self._barrierThreadRun = False
@@ -45,10 +37,15 @@ class TestManager:
                 self._activeStepIndex = 0
 
                 try:
-                    self.__stopBarrierThread()
                     self.__stopHatchCheckThread()
+                    self.openHatch()
+                    self.__moveRobotToHome()
+                    self._robot.writeBit(3,0)
+                    self.__stopBarrierThread()
+                    self._backend.raiseAllStepsFinished()
                 except:
                     pass
+
         except:
             pass
 
@@ -154,16 +151,16 @@ class TestManager:
             self._robot.setHoldStatus(False)
             self._backend.raiseResetOk()
             self._camera.switchToRunMode()
-            sleep(0.2)
+            sleep(0.001)
 
             # self._robot.writeBit(1, 0)
             self._robot.selectJob(self._comConfig['rbToMasterJob'])
             self._backend.raiseMasterJobOk()
-            sleep(0.2)
+            sleep(0.001)
 
             self._robot.setServoStatus(True)
             self._backend.raiseServoOnOk()
-            sleep(0.2)
+            sleep(0.001)
 
             self._robot.startJob()
             self._backend.raiseStartOk()
@@ -269,7 +266,7 @@ class TestManager:
 
     def __loopHatchCheckThread(self):
         dtCmdStart = None
-        while self._isTestRunning == True or self._closeHatchCommandActivated == True:
+        while self._closeHatchCommandActivated == True: # or self._isTestRunning == True:
             try:
                 self._hatchIsClosed = self.checkHatchIsClosed()
                 if self._hatchIsClosed == False and self._closeHatchCommandActivated == False:
@@ -353,20 +350,28 @@ class TestManager:
 
     def startTest(self, productData):
         if self.__checkAliveStatus():
+            # check robot status
+            robotStats = self.readRobotStatus()
+            if not robotStats == None:
+                if robotStats['Teach'] == True:
+                    self.__raiseError('Başlatmak için robotu manuel modundan çıkartınız.')
+                    return
+            
+
             self._isTestRunning = True
             self._product = productData
             self._activeStepIndex = 0
 
             self.__startBarrierThread()
-            sleep(0.3)
-            self.setVacuum(1)
-            self.closeHatch()
+            sleep(0.05)
+            # self.setVacuum(1)
+            # self.closeHatch()
 
-            sleep(0.1)
-            while self._hatchIsClosed == False:
-                if self._isTestRunning == False:
-                    return
-                sleep(0.1)
+            # sleep(0.1)
+            # while self._hatchIsClosed == False:
+            #     if self._isTestRunning == False:
+            #         return
+            #     sleep(0.1)
             
             if not self.__prepareRobotToStart():
                 if self._isTestRunning == False:
@@ -403,23 +408,37 @@ class TestManager:
             sleep(0.1)
             self.setVacuum(0)
             sleep(0.2)
-            return self._robot.writeExternalIo(2701, 1) # enable up signal
+            self._robot.writeExternalIo(2701, 1) # enable up signal
+
+            tryCount = 0
+            while self.checkHatchIsClosed():
+                sleep(0.2)
+                tryCount = tryCount + 1
+
+                if tryCount >= 25:
+                    self.__raiseError('Kapak açılamadı, havayı kontrol ediniz.')
+                    self.stopTest()
+                    return False
+
+            return True
         # sleep(3)
         # self._robot.writeExternalIo(2701, 0)
 
     
-    def closeHatch(self) -> bool:
-        self._closeHatchCommandActivated = True
-        self.__startHatchCheckThread()
+    def closeHatch(self, manuelClose = False) -> bool:
+        if manuelClose == False:
+            self._closeHatchCommandActivated = True
+            self.__startHatchCheckThread()
 
-        self._barrierThreadRun = True
-        self.__startBarrierThread()
+            self._barrierThreadRun = True
+            self.__startBarrierThread()
+
         self._lightBarrierOk = self.__checkLightBarrier()
 
         if self._lightBarrierOk == True:
             self._robot.writeExternalIo(2701, 0) # disable up signal
             sleep(0.1)
-            return self._robot.writeExternalIo(2702, 1) # enable up signal
+            return self._robot.writeExternalIo(2702, 1) # enable down signal
         else:
             return False
 
@@ -428,6 +447,13 @@ class TestManager:
         self._robot.writeExternalIo(2702, 0)
         self.setVacuum(0)
         return True
+
+
+    def readRobotStatus(self):
+        try:
+            return self._robot.readStatus()
+        except:
+            return None
         
 
     def setVacuum(self, status: int) -> bool:
@@ -475,9 +501,17 @@ class TestManager:
 
 
                 # SEND ROBOT GOTO START POSITION OF CURRENT STEP
-                rbGotoPositionData = recipe['rbToRecipeStarted'].split(':')
-                self.__writeToRobot(rbGotoPositionData, int(rbGotoPositionData[2]))
-                self._robot.writeBit(3, 0)
+                if self._activeStepIndex == 0:
+                    rbGotoPositionData = recipe['rbToRecipeStarted'].split(':')
+                    print('JOB: ' + str(rbGotoPositionData[2]))
+                    self._robot.writeInteger(0,0)
+                    # sleep(0.1)
+                    self._robot.writeBit(3, 1)
+                    # sleep(0.1)
+                    self.__writeToRobot(rbGotoPositionData, int(rbGotoPositionData[2]))
+                    
+                    # sleep(0.5)
+                    # self._robot.writeBit(3, 0)
 
                 if self._stepStatus == False:
                     return
@@ -496,11 +530,15 @@ class TestManager:
                     tryCount = tryCount + 1
                     if tryCount > 300: # max timeout 10 sn
                         self._robot.writeInteger(0,0)
+                        # sleep(0.1)
                         self._robot.writeBit(3, 1)
-                        self._robot.writeBit(4, 1)
                         if self._isTestRunning == True:
                             self.__raiseError('Robot Beklenen Pozisyona Getirilemedi.')
                         return
+
+                self._robot.writeInteger(0,0)
+                sleep(0.1)
+                self._robot.writeBit(3, 1)
 
                 self.__raiseStartPosArrived()
 
@@ -542,6 +580,25 @@ class TestManager:
                         if self._isTestRunning == True:
                             self.__raiseError('Robot Bölge Taramasını Tamamlayamadı')
                         return
+
+
+                # SEND ROBOT GOTO START POSITION OF NEXT STEP
+                if self._activeStepIndex + 1 < len(self._product['steps']):
+                    print('NEXT')
+                    nextStep = self._product['steps'][self._activeStepIndex + 1]
+                    nextRecipe = nextStep['camRecipe']
+                    rbGotoPositionDataNext = nextRecipe['rbToRecipeStarted'].split(':')
+                    print('JOB: ' + str(rbGotoPositionDataNext[2]))
+                    self._robot.writeInteger(0,0)
+                    # sleep(0.1)
+                    self._robot.writeBit(3, 1)
+                    # sleep(0.1)
+                    self.__writeToRobot(rbGotoPositionDataNext, int(rbGotoPositionDataNext[2]))
+                    # sleep(0.1)
+                    # self._robot.writeBit(3, 1)
+                    # sleep(0.2)
+                    # self._robot.writeBit(3, 0)
+
 
                 # UPDATE! = WAIT UNTIL CAMERA OUTPUT IS READY
                 # sleep(0.3)
@@ -586,14 +643,15 @@ class TestManager:
                     pass
 
                 # RESET PROGRAM
-                self._robot.writeInteger(0, 0)
-                sleep(0.1)
-                self._robot.writeBit(3, 1)
-                self._robot.writeBit(4, 0)
+                if self._activeStepIndex + 1 >= len(self._product['steps']):
+                    self._robot.writeInteger(0, 0)
+                    # sleep(0.1)
+                    self._robot.writeBit(3, 1)
+
 
                 self.__raiseStepResult(testResult, str(activeStep['id']))
                 
-                # sleep(10)  
+                # sleep(5)  
 
                 if self._stepStatus == False:
                     self.stopTest()

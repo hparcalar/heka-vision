@@ -24,6 +24,12 @@ class BackendManager(QObject):
         self.runSensorChecker = False
         self.sensorChecker = None
 
+        self.runRobotHoldChecker = False
+        self.robotHoldChecker = None
+
+        self.lastRobotHoldStatus = False
+        self.changingRobotHoldStatus = False
+
 
     def initDb(self):
         create_tables()
@@ -75,6 +81,8 @@ class BackendManager(QObject):
     getStartPosArrived = Signal()
     getProductSensor = Signal(bool)
     getNewImageResult = Signal(str, int)
+    getCaptureImage = Signal(str)
+    getRobotHoldChanged= Signal(bool)
     # endregion
     
     # region THR FUNCTIONS
@@ -122,9 +130,12 @@ class BackendManager(QObject):
             if self.sensorChecker:
                 self.runSensorChecker = False
                 self.sensorChecker.stop()
+
+            if self.robotHoldChecker:
+                self.runRobotHoldChecker = False
+                self.robotHoldChecker.stop()
         except:
             pass
-
 
     def __listenForCommCheck(self):
         while self.runCommChecker:
@@ -153,6 +164,18 @@ class BackendManager(QObject):
                 pass
             sleep(0.3)
     
+    def __listenForRobotHold(self):
+        while self.runRobotHoldChecker:
+            try:
+                if self.changingRobotHoldStatus == False:
+                    liveStatus = self.testManager.readRobotStatus()['Hold']
+                    if not liveStatus == None and liveStatus != self.lastRobotHoldStatus:
+                        self.lastRobotHoldStatus = liveStatus
+                        self.getRobotHoldChanged.emit(liveStatus)
+            except:
+                pass
+
+            sleep(1)
     
     # endregion
 
@@ -163,6 +186,11 @@ class BackendManager(QObject):
         if not self.commChecker:
             self.commChecker = HekaThread(target=self.__listenForCommCheck)
             self.commChecker.start()
+
+        self.runRobotHoldChecker = True
+        if not self.robotHoldChecker:
+            self.robotHoldChecker = HekaThread(target=self.__listenForRobotHold)
+            self.robotHoldChecker.start()
 
 
     @Slot()
@@ -188,7 +216,13 @@ class BackendManager(QObject):
 
     @Slot()
     def setRobotHold(self):
-        self.testManager.setRobotHold(True)
+        self.changingRobotHoldStatus = True
+        self.lastRobotHoldStatus = self.testManager.readRobotStatus()['Hold']
+        nextStatus = not self.lastRobotHoldStatus
+        self.testManager.setRobotHold(nextStatus)
+        self.lastRobotHoldStatus = nextStatus
+        self.changingRobotHoldStatus = False
+        self.getRobotHoldChanged.emit(nextStatus)
 
 
     @Slot()
@@ -200,7 +234,7 @@ class BackendManager(QObject):
     @Slot()
     def closeHatch(self):
         #pass
-        self.testManager.closeHatch()
+        self.testManager.closeHatch(manuelClose=True)
         self.testManager.setVacuum(0)
 
 
@@ -315,6 +349,15 @@ class BackendManager(QObject):
             self.getLiveStatus.emit(json.dumps(data))
 
 
+    @Slot(str)
+    def requestCaptureImage(self, camImage: str):
+        if self.dirManager:
+            camImage = camImage.replace('file://', '')
+            captureImage = self.dirManager.getCaptureImage(camImage)
+            if captureImage:
+                self.getCaptureImage.emit(captureImage)
+
+
     # PRODUCT SLOTS
     @Slot()
     def requestProductList(self):
@@ -339,7 +382,7 @@ class BackendManager(QObject):
                     dirArr.append(rcp['imageDir'])
 
             self.dirManager.stopListeners()
-
+            sleep(0.5)
             self.dirManager.setRecipes(rcpArr)
             self.dirManager.setDirectories(dirArr)
 

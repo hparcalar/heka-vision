@@ -811,7 +811,7 @@ Popup {
                                         // PRODUCT GRID SCHEMA
                                         Rectangle{
                                             Layout.fillWidth: true
-                                            Layout.preferredHeight: 120
+                                            Layout.preferredHeight: 80
                                             color: "transparent"
 
                                             RowLayout{
@@ -831,7 +831,7 @@ Popup {
                                                         // DIM WIDTH
                                                         Rectangle{
                                                             Layout.fillWidth: true
-                                                            Layout.preferredHeight: 50
+                                                            Layout.preferredHeight: 40
                                                             Layout.alignment: Qt.AlignTop
                                                             color: "transparent"
 
@@ -840,11 +840,13 @@ Popup {
 
                                                                 Label{
                                                                     Layout.fillWidth: true
-                                                                    Layout.preferredHeight: 15
+                                                                    Layout.fillHeight: true
                                                                     Layout.alignment: Qt.AlignTop
                                                                     horizontalAlignment: Text.AlignLeft
                                                                     text:'W'
-                                                                    font.pixelSize: 12
+                                                                    minimumPointSize: 5
+                                                                    font.pointSize: 14
+                                                                    fontSizeMode: Text.Fit
                                                                 }
 
                                                                 TextField {
@@ -852,7 +854,7 @@ Popup {
                                                                     Layout.fillHeight: true
                                                                     Layout.fillWidth: true
                                                                     font.pixelSize: 9
-                                                                    padding: 10
+                                                                    padding: 2
                                                                     onTextChanged: bindGridSchema()
                                                                     background: Rectangle {
                                                                         radius: 5
@@ -867,7 +869,7 @@ Popup {
                                                         // DIM HEIGHT
                                                         Rectangle{
                                                             Layout.fillWidth: true
-                                                            Layout.preferredHeight: 50
+                                                            Layout.preferredHeight: 40
                                                             Layout.alignment: Qt.AlignTop
                                                             Layout.topMargin: 15
                                                             color: "transparent"
@@ -877,11 +879,13 @@ Popup {
 
                                                                 Label{
                                                                     Layout.fillWidth: true
-                                                                    Layout.preferredHeight: 15
+                                                                    Layout.fillHeight: true
                                                                     Layout.alignment: Qt.AlignTop
                                                                     horizontalAlignment: Text.AlignLeft
                                                                     text:'H'
-                                                                    font.pixelSize: 12
+                                                                    minimumPointSize: 5
+                                                                    font.pointSize: 14
+                                                                    fontSizeMode: Text.Fit
                                                                 }
 
                                                                 TextField {
@@ -890,7 +894,7 @@ Popup {
                                                                     Layout.fillWidth: true
                                                                     font.pixelSize: 9
                                                                     onTextChanged: bindGridSchema()
-                                                                    padding: 10
+                                                                    padding: 2
                                                                     background: Rectangle {
                                                                         radius: 5
                                                                         border.color: parent.focus ? "#326195" : "#888"
@@ -899,13 +903,6 @@ Popup {
                                                                     }
                                                                 }
                                                             }
-                                                        }
-
-                                                        // VIEW BUFFER RECT
-                                                        Rectangle{
-                                                            Layout.fillWidth: true
-                                                            Layout.fillHeight: true
-                                                            color: "transparent"
                                                         }
                                                     }
                                                 }
@@ -1120,7 +1117,7 @@ Popup {
                                                                         
                                                                         Rectangle {
                                                                             Layout.fillWidth: true
-                                                                            Layout.preferredHeight: 30
+                                                                            Layout.preferredHeight: 20
                                                                             Layout.alignment: Qt.AlignTop
                                                                             color: "#efefef"
                                                                             
@@ -1148,7 +1145,7 @@ Popup {
                                                                                         padding: 2
                                                                                         leftPadding: 10
                                                                                         minimumPointSize: 5
-                                                                                        font.pointSize: 14
+                                                                                        font.pointSize: 10
                                                                                         fontSizeMode: Text.Fit
                                                                                         font.bold: true
                                                                                         text: (modelData.orderNo ?? '')
@@ -1168,7 +1165,7 @@ Popup {
                                                                                         color:"#333"
                                                                                         padding: 2
                                                                                         minimumPointSize: 5
-                                                                                        font.pointSize: 14
+                                                                                        font.pointSize: 10
                                                                                         fontSizeMode: Text.Fit
                                                                                         text: (modelData.sectionName ?? '')
                                                                                     }
@@ -1182,9 +1179,9 @@ Popup {
                                                                                     Button{
                                                                                         onClicked: showSection(modelData.id, modelData.sectionName)
                                                                                         width: 30
-                                                                                        height: parent.height - 10
+                                                                                        height: parent.height
                                                                                         anchors.top: parent.top
-                                                                                        anchors.topMargin: 5
+                                                                                        anchors.topMargin: 0
                                                                                         padding: 5
                                                                                         background: Rectangle {
                                                                                             border.width: parent.activeFocus ? 2 : 1
@@ -1231,13 +1228,14 @@ Popup {
                                                         anchors.leftMargin: 5
                                                         anchors.rightMargin: 5
                                                         anchors.topMargin: 10
+                                                        spacing: 0
 
                                                         // SECTION NAME FIELD
                                                         Rectangle{
-                                                            Layout.preferredHeight: 50
+                                                            Layout.preferredHeight: 40
                                                             Layout.fillWidth: true
                                                             Layout.alignment: Qt.AlignTop
-                                                            Layout.margins: 2
+                                                            Layout.margins: 0
                                                             color: "transparent"
 
                                                             ColumnLayout{
@@ -1245,11 +1243,13 @@ Popup {
 
                                                                 Label{
                                                                     Layout.fillWidth: true
-                                                                    Layout.preferredHeight: 15
+                                                                    Layout.preferredHeight: 12
                                                                     Layout.alignment: Qt.AlignTop
                                                                     horizontalAlignment: Text.AlignLeft
                                                                     text:'Bölge Adı'
-                                                                    font.pixelSize: 12
+                                                                    minimumPointSize: 5
+                                                                    font.pointSize: 14
+                                                                    fontSizeMode: Text.Fit
                                                                 }
 
                                                                 TextField {
@@ -1257,7 +1257,7 @@ Popup {
                                                                     Layout.fillHeight: true
                                                                     Layout.fillWidth: true
                                                                     font.pixelSize: 9
-                                                                    padding: 10
+                                                                    padding: 2
                                                                     background: Rectangle {
                                                                         radius: 5
                                                                         border.color: parent.focus ? "#326195" : "#888"
@@ -1270,10 +1270,10 @@ Popup {
 
                                                         // SECTION AREA NO FIELD
                                                         Rectangle{
-                                                            Layout.preferredHeight: 50
+                                                            Layout.preferredHeight: 40
                                                             Layout.fillWidth: true
                                                             Layout.alignment: Qt.AlignTop
-                                                            Layout.margins: 2
+                                                            Layout.margins: 0
                                                             color: "transparent"
 
                                                             ColumnLayout{
@@ -1281,11 +1281,13 @@ Popup {
 
                                                                 Label{
                                                                     Layout.fillWidth: true
-                                                                    Layout.preferredHeight: 15
+                                                                    Layout.preferredHeight: 12
                                                                     Layout.alignment: Qt.AlignTop
                                                                     horizontalAlignment: Text.AlignLeft
                                                                     text:'Bölge No'
-                                                                    font.pixelSize: 12
+                                                                    minimumPointSize: 5
+                                                                    font.pointSize: 14
+                                                                    fontSizeMode: Text.Fit
                                                                 }
 
                                                                 TextField {
@@ -1293,7 +1295,7 @@ Popup {
                                                                     Layout.fillHeight: true
                                                                     Layout.fillWidth: true
                                                                     font.pixelSize: 9
-                                                                    padding: 10
+                                                                    padding: 2
                                                                     background: Rectangle {
                                                                         radius: 5
                                                                         border.color: parent.focus ? "#326195" : "#888"
@@ -1306,10 +1308,10 @@ Popup {
 
                                                         // SECTION ORDER NO FIELD
                                                         Rectangle{
-                                                            Layout.preferredHeight: 50
+                                                            Layout.preferredHeight: 40
                                                             Layout.fillWidth: true
                                                             Layout.alignment: Qt.AlignTop
-                                                            Layout.margins: 2
+                                                            Layout.margins: 0
                                                             color: "transparent"
 
                                                             ColumnLayout{
@@ -1317,11 +1319,13 @@ Popup {
 
                                                                 Label{
                                                                     Layout.fillWidth: true
-                                                                    Layout.preferredHeight: 15
+                                                                    Layout.preferredHeight: 12
                                                                     Layout.alignment: Qt.AlignTop
                                                                     horizontalAlignment: Text.AlignLeft
                                                                     text:'Sıra No'
-                                                                    font.pixelSize: 12
+                                                                    minimumPointSize: 5
+                                                                    font.pointSize: 14
+                                                                    fontSizeMode: Text.Fit
                                                                 }
 
                                                                 TextField {
@@ -1329,7 +1333,7 @@ Popup {
                                                                     Layout.fillHeight: true
                                                                     Layout.fillWidth: true
                                                                     font.pixelSize: 9
-                                                                    padding: 10
+                                                                    padding: 2
                                                                     background: Rectangle {
                                                                         radius: 5
                                                                         border.color: parent.focus ? "#326195" : "#888"
@@ -1342,10 +1346,10 @@ Popup {
 
                                                         // SECTION POSITION (X,Y)
                                                         Rectangle{
-                                                            Layout.preferredHeight: 50
+                                                            Layout.preferredHeight: 40
                                                             Layout.fillWidth: true
                                                             Layout.alignment: Qt.AlignTop
-                                                            Layout.margins: 2
+                                                            Layout.margins: 0
                                                             color: "transparent"
 
                                                             RowLayout{
@@ -1363,11 +1367,13 @@ Popup {
 
                                                                         Label{
                                                                             Layout.fillWidth: true
-                                                                            Layout.preferredHeight: 15
+                                                                            Layout.preferredHeight: 12
                                                                             Layout.alignment: Qt.AlignTop
                                                                             horizontalAlignment: Text.AlignLeft
                                                                             text:'X'
-                                                                            font.pixelSize: 12
+                                                                            minimumPointSize: 5
+                                                                            font.pointSize: 14
+                                                                            fontSizeMode: Text.Fit
                                                                         }
 
                                                                         TextField {
@@ -1375,7 +1381,7 @@ Popup {
                                                                             Layout.fillHeight: true
                                                                             Layout.fillWidth: true
                                                                             font.pixelSize: 9
-                                                                            padding: 10
+                                                                            padding: 2
                                                                             background: Rectangle {
                                                                                 radius: 5
                                                                                 border.color: parent.focus ? "#326195" : "#888"
@@ -1398,11 +1404,13 @@ Popup {
 
                                                                         Label{
                                                                             Layout.fillWidth: true
-                                                                            Layout.preferredHeight: 15
+                                                                            Layout.preferredHeight: 12
                                                                             Layout.alignment: Qt.AlignTop
                                                                             horizontalAlignment: Text.AlignLeft
                                                                             text:'Y'
-                                                                            font.pixelSize: 12
+                                                                            minimumPointSize: 5
+                                                                            font.pointSize: 14
+                                                                            fontSizeMode: Text.Fit
                                                                         }
 
                                                                         TextField {
@@ -1410,7 +1418,7 @@ Popup {
                                                                             Layout.fillHeight: true
                                                                             Layout.fillWidth: true
                                                                             font.pixelSize: 9
-                                                                            padding: 10
+                                                                            padding: 2
                                                                             background: Rectangle {
                                                                                 radius: 5
                                                                                 border.color: parent.focus ? "#326195" : "#888"
@@ -1425,10 +1433,10 @@ Popup {
 
                                                         // SECTION DIMS (W,H)
                                                         Rectangle{
-                                                            Layout.preferredHeight: 50
+                                                            Layout.preferredHeight: 40
                                                             Layout.fillWidth: true
                                                             Layout.alignment: Qt.AlignTop
-                                                            Layout.margins: 2
+                                                            Layout.margins: 0
                                                             color: "transparent"
 
                                                             RowLayout{
@@ -1446,11 +1454,13 @@ Popup {
 
                                                                         Label{
                                                                             Layout.fillWidth: true
-                                                                            Layout.preferredHeight: 15
+                                                                            Layout.preferredHeight: 12
                                                                             Layout.alignment: Qt.AlignTop
                                                                             horizontalAlignment: Text.AlignLeft
                                                                             text:'W'
-                                                                            font.pixelSize: 12
+                                                                            minimumPointSize: 5
+                                                                            font.pointSize: 14
+                                                                            fontSizeMode: Text.Fit
                                                                         }
 
                                                                         TextField {
@@ -1458,7 +1468,7 @@ Popup {
                                                                             Layout.fillHeight: true
                                                                             Layout.fillWidth: true
                                                                             font.pixelSize: 9
-                                                                            padding: 10
+                                                                            padding: 2
                                                                             background: Rectangle {
                                                                                 radius: 5
                                                                                 border.color: parent.focus ? "#326195" : "#888"
@@ -1481,11 +1491,13 @@ Popup {
 
                                                                         Label{
                                                                             Layout.fillWidth: true
-                                                                            Layout.preferredHeight: 15
+                                                                            Layout.preferredHeight: 12
                                                                             Layout.alignment: Qt.AlignTop
                                                                             horizontalAlignment: Text.AlignLeft
                                                                             text:'H'
-                                                                            font.pixelSize: 12
+                                                                            minimumPointSize: 5
+                                                                            font.pointSize: 14
+                                                                            fontSizeMode: Text.Fit
                                                                         }
 
                                                                         TextField {
@@ -1493,7 +1505,7 @@ Popup {
                                                                             Layout.fillHeight: true
                                                                             Layout.fillWidth: true
                                                                             font.pixelSize: 9
-                                                                            padding: 10
+                                                                            padding: 2
                                                                             background: Rectangle {
                                                                                 radius: 5
                                                                                 border.color: parent.focus ? "#326195" : "#888"
@@ -1508,7 +1520,7 @@ Popup {
                                                         
                                                         // ACTION BUTTONS
                                                         Rectangle{
-                                                            Layout.preferredHeight: 50
+                                                            Layout.preferredHeight: 30
                                                             Layout.fillWidth: true
                                                             Layout.alignment: Qt.AlignTop
                                                             Layout.margins: 2
@@ -1534,8 +1546,8 @@ Popup {
                                                                     }
                                                                     Image {
                                                                         anchors.centerIn: parent
-                                                                        sourceSize.width: 50
-                                                                        sourceSize.height: 30
+                                                                        sourceSize.width: 40
+                                                                        sourceSize.height: 20
                                                                         fillMode: Image.Stretch
                                                                         source: "../assets/save.png"
                                                                     }
@@ -1557,8 +1569,8 @@ Popup {
                                                                     }
                                                                     Image {
                                                                         anchors.centerIn: parent
-                                                                        sourceSize.width: 50
-                                                                        sourceSize.height: 30
+                                                                        sourceSize.width: 40
+                                                                        sourceSize.height: 20
                                                                         fillMode: Image.Stretch
                                                                         source: "../assets/delete.png"
                                                                     }
@@ -1723,7 +1735,7 @@ Popup {
                                                                 
                                                                 Rectangle {
                                                                     Layout.fillWidth: true
-                                                                    Layout.preferredHeight: 30
+                                                                    Layout.preferredHeight: 20
                                                                     Layout.alignment: Qt.AlignTop
                                                                     color: "#efefef"
                                                                     
@@ -1752,7 +1764,7 @@ Popup {
                                                                                 padding: 2
                                                                                 leftPadding: 10
                                                                                 minimumPointSize: 5
-                                                                                font.pointSize: 14
+                                                                                font.pointSize: 10
                                                                                 fontSizeMode: Text.Fit
                                                                                 font.bold: true
                                                                                 text: (modelData.recipeCode ?? '')
@@ -1767,9 +1779,9 @@ Popup {
                                                                             Button{
                                                                                 onClicked: showRecipe(modelData.id, modelData.recipeCode)
                                                                                 width: 30
-                                                                                height: parent.height - 10
+                                                                                height: parent.height
                                                                                 anchors.top: parent.top
-                                                                                anchors.topMargin: 5
+                                                                                anchors.topMargin: 0
                                                                                 padding: 5
                                                                                 background: Rectangle {
                                                                                     border.width: parent.activeFocus ? 2 : 1
@@ -1816,13 +1828,14 @@ Popup {
                                                 anchors.leftMargin: 5
                                                 anchors.rightMargin: 5
                                                 anchors.topMargin: 10
+                                                spacing: 0
 
                                                 // RECIPE CODE FIELD
                                                 Rectangle{
                                                     Layout.preferredHeight: 40
                                                     Layout.fillWidth: true
                                                     Layout.alignment: Qt.AlignTop
-                                                    Layout.margins: 2
+                                                    Layout.margins: 0
                                                     color: "transparent"
 
                                                     ColumnLayout{
@@ -1860,7 +1873,7 @@ Popup {
                                                     Layout.preferredHeight: 40
                                                     Layout.fillWidth: true
                                                     Layout.alignment: Qt.AlignTop
-                                                    Layout.margins: 2
+                                                    Layout.margins: 0
                                                     color: "transparent"
 
                                                     ColumnLayout{
@@ -1898,7 +1911,7 @@ Popup {
                                                     Layout.preferredHeight: 40
                                                     Layout.fillWidth: true
                                                     Layout.alignment: Qt.AlignTop
-                                                    Layout.margins: 2
+                                                    Layout.margins: 0
                                                     color: "transparent"
 
                                                     ColumnLayout{
@@ -1936,7 +1949,7 @@ Popup {
                                                     Layout.preferredHeight: 40
                                                     Layout.fillWidth: true
                                                     Layout.alignment: Qt.AlignTop
-                                                    Layout.margins: 2
+                                                    Layout.margins: 0
                                                     color: "transparent"
 
                                                     RowLayout{
@@ -2023,7 +2036,7 @@ Popup {
                                                     Layout.preferredHeight: 40
                                                     Layout.fillWidth: true
                                                     Layout.alignment: Qt.AlignTop
-                                                    Layout.margins: 2
+                                                    Layout.margins: 0
                                                     color: "transparent"
 
                                                     RowLayout{
@@ -2110,7 +2123,7 @@ Popup {
                                                     Layout.preferredHeight: 40
                                                     Layout.fillWidth: true
                                                     Layout.alignment: Qt.AlignTop
-                                                    Layout.margins: 2
+                                                    Layout.margins: 0
                                                     color: "transparent"
 
                                                     ColumnLayout{
@@ -2152,7 +2165,7 @@ Popup {
                                                 
                                                 // ACTION BUTTONS
                                                 Rectangle{
-                                                    Layout.preferredHeight: 40
+                                                    Layout.preferredHeight: 30
                                                     Layout.fillWidth: true
                                                     Layout.alignment: Qt.AlignTop
                                                     Layout.margins: 2
@@ -2178,8 +2191,8 @@ Popup {
                                                             }
                                                             Image {
                                                                 anchors.centerIn: parent
-                                                                sourceSize.width: 50
-                                                                sourceSize.height: 30
+                                                                sourceSize.width: 40
+                                                                sourceSize.height: 20
                                                                 fillMode: Image.Stretch
                                                                 source: "../assets/save.png"
                                                             }
@@ -2201,8 +2214,8 @@ Popup {
                                                             }
                                                             Image {
                                                                 anchors.centerIn: parent
-                                                                sourceSize.width: 50
-                                                                sourceSize.height: 30
+                                                                sourceSize.width: 40
+                                                                sourceSize.height: 20
                                                                 fillMode: Image.Stretch
                                                                 source: "../assets/delete.png"
                                                             }
@@ -2410,7 +2423,7 @@ Popup {
                                                                 
                                                                 Rectangle {
                                                                     Layout.fillWidth: true
-                                                                    Layout.preferredHeight: 30
+                                                                    Layout.preferredHeight: 20
                                                                     Layout.alignment: Qt.AlignTop
                                                                     color: "#efefef"
                                                                     
@@ -2439,7 +2452,7 @@ Popup {
                                                                                 padding: 2
                                                                                 leftPadding: 10
                                                                                 minimumPointSize: 5
-                                                                                font.pointSize: 14
+                                                                                font.pointSize: 10
                                                                                 fontSizeMode: Text.Fit
                                                                                 font.bold: true
                                                                                 text: (modelData.orderNo ?? 0)
@@ -2459,7 +2472,7 @@ Popup {
                                                                                 color:"#333"
                                                                                 padding: 2
                                                                                 minimumPointSize: 5
-                                                                                font.pointSize: 14
+                                                                                font.pointSize: 10
                                                                                 fontSizeMode: Text.Fit
                                                                                 text: (modelData.testName ?? '')
                                                                             }
@@ -2478,7 +2491,7 @@ Popup {
                                                                                 color:"#333"
                                                                                 padding: 2
                                                                                 minimumPointSize: 5
-                                                                                font.pointSize: 14
+                                                                                font.pointSize: 10
                                                                                 fontSizeMode: Text.Fit
                                                                                 text: (modelData.sectionName ?? '')
                                                                             }
@@ -2492,9 +2505,9 @@ Popup {
                                                                             Button{
                                                                                 onClicked: showStep(modelData.id, modelData.testName)
                                                                                 width: 30
-                                                                                height: parent.height - 10
+                                                                                height: parent.height
                                                                                 anchors.top: parent.top
-                                                                                anchors.topMargin: 5
+                                                                                anchors.topMargin: 0
                                                                                 padding: 5
                                                                                 background: Rectangle {
                                                                                     border.width: parent.activeFocus ? 2 : 1
@@ -2541,13 +2554,14 @@ Popup {
                                                 anchors.leftMargin: 5
                                                 anchors.rightMargin: 5
                                                 anchors.topMargin: 10
+                                                spacing: 0
 
                                                 // TEST NAME FIELD
                                                 Rectangle{
-                                                    Layout.preferredHeight: 50
+                                                    Layout.preferredHeight: 40
                                                     Layout.fillWidth: true
                                                     Layout.alignment: Qt.AlignTop
-                                                    Layout.margins: 2
+                                                    Layout.margins: 0
                                                     color: "transparent"
 
                                                     ColumnLayout{
@@ -2555,11 +2569,13 @@ Popup {
 
                                                         Label{
                                                             Layout.fillWidth: true
-                                                            Layout.preferredHeight: 15
+                                                            Layout.preferredHeight: 12
                                                             Layout.alignment: Qt.AlignTop
                                                             horizontalAlignment: Text.AlignLeft
                                                             text:'Test Adı'
-                                                            font.pixelSize: 12
+                                                            minimumPointSize: 5
+                                                            font.pointSize: 14
+                                                            fontSizeMode: Text.Fit
                                                         }
 
                                                         TextField {
@@ -2567,7 +2583,7 @@ Popup {
                                                             Layout.fillHeight: true
                                                             Layout.fillWidth: true
                                                             font.pixelSize: 9
-                                                            padding: 10
+                                                            padding: 2
                                                             background: Rectangle {
                                                                 radius: 5
                                                                 border.color: parent.focus ? "#326195" : "#888"
@@ -2580,10 +2596,10 @@ Popup {
 
                                                 // TEST ORDER NO FIELD
                                                 Rectangle{
-                                                    Layout.preferredHeight: 50
+                                                    Layout.preferredHeight: 40
                                                     Layout.fillWidth: true
                                                     Layout.alignment: Qt.AlignTop
-                                                    Layout.margins: 2
+                                                    Layout.margins: 0
                                                     color: "transparent"
 
                                                     ColumnLayout{
@@ -2591,11 +2607,13 @@ Popup {
 
                                                         Label{
                                                             Layout.fillWidth: true
-                                                            Layout.preferredHeight: 15
+                                                            Layout.preferredHeight: 12
                                                             Layout.alignment: Qt.AlignTop
                                                             horizontalAlignment: Text.AlignLeft
                                                             text:'Sıra No'
-                                                            font.pixelSize: 12
+                                                            minimumPointSize: 5
+                                                            font.pointSize: 14
+                                                            fontSizeMode: Text.Fit
                                                         }
 
                                                         TextField {
@@ -2603,7 +2621,7 @@ Popup {
                                                             Layout.fillHeight: true
                                                             Layout.fillWidth: true
                                                             font.pixelSize: 9
-                                                            padding: 10
+                                                            padding: 2
                                                             background: Rectangle {
                                                                 radius: 5
                                                                 border.color: parent.focus ? "#326195" : "#888"
@@ -2616,10 +2634,10 @@ Popup {
 
                                                 // TEST SECTION FIELD
                                                 Rectangle{
-                                                    Layout.preferredHeight: 50
+                                                    Layout.preferredHeight: 40
                                                     Layout.fillWidth: true
                                                     Layout.alignment: Qt.AlignTop
-                                                    Layout.margins: 2
+                                                    Layout.margins: 0
                                                     color: "transparent"
 
                                                     ColumnLayout{
@@ -2627,11 +2645,13 @@ Popup {
 
                                                         Label{
                                                             Layout.fillWidth: true
-                                                            Layout.preferredHeight: 15
+                                                            Layout.preferredHeight: 12
                                                             Layout.alignment: Qt.AlignTop
                                                             horizontalAlignment: Text.AlignLeft
                                                             text:'Bölge'
-                                                            font.pixelSize: 12
+                                                            minimumPointSize: 5
+                                                            font.pointSize: 14
+                                                            fontSizeMode: Text.Fit
                                                         }
 
                                                         ComboBox{
@@ -2640,7 +2660,7 @@ Popup {
                                                             Layout.fillHeight: true
                                                             Layout.fillWidth: true
                                                             font.pixelSize: 9
-                                                            padding: 10
+                                                            padding: 2
                                                             background: Rectangle{
                                                                 radius: 5
                                                                 border.color: parent.focus ? "#326195" : "#888"
@@ -2657,10 +2677,10 @@ Popup {
 
                                                 // TEST RECIPE FIELD
                                                 Rectangle{
-                                                    Layout.preferredHeight: 50
+                                                    Layout.preferredHeight: 40
                                                     Layout.fillWidth: true
                                                     Layout.alignment: Qt.AlignTop
-                                                    Layout.margins: 2
+                                                    Layout.margins: 0
                                                     color: "transparent"
 
                                                     ColumnLayout{
@@ -2668,11 +2688,13 @@ Popup {
 
                                                         Label{
                                                             Layout.fillWidth: true
-                                                            Layout.preferredHeight: 15
+                                                            Layout.preferredHeight: 12
                                                             Layout.alignment: Qt.AlignTop
                                                             horizontalAlignment: Text.AlignLeft
                                                             text:'Reçete'
-                                                            font.pixelSize: 12
+                                                            minimumPointSize: 5
+                                                            font.pointSize: 14
+                                                            fontSizeMode: Text.Fit
                                                         }
 
                                                         ComboBox{
@@ -2681,7 +2703,7 @@ Popup {
                                                             Layout.fillHeight: true
                                                             Layout.fillWidth: true
                                                             font.pixelSize: 9
-                                                            padding: 10
+                                                            padding: 2
                                                             background: Rectangle{
                                                                 radius: 5
                                                                 border.color: parent.focus ? "#326195" : "#888"
@@ -2698,7 +2720,7 @@ Popup {
                                                 
                                                 // ACTION BUTTONS
                                                 Rectangle{
-                                                    Layout.preferredHeight: 50
+                                                    Layout.preferredHeight: 30
                                                     Layout.fillWidth: true
                                                     Layout.alignment: Qt.AlignTop
                                                     Layout.margins: 2
@@ -2724,8 +2746,8 @@ Popup {
                                                             }
                                                             Image {
                                                                 anchors.centerIn: parent
-                                                                sourceSize.width: 50
-                                                                sourceSize.height: 30
+                                                                sourceSize.width: 40
+                                                                sourceSize.height: 20
                                                                 fillMode: Image.Stretch
                                                                 source: "../assets/save.png"
                                                             }
@@ -2747,8 +2769,8 @@ Popup {
                                                             }
                                                             Image {
                                                                 anchors.centerIn: parent
-                                                                sourceSize.width: 50
-                                                                sourceSize.height: 30
+                                                                sourceSize.width: 40
+                                                                sourceSize.height: 20
                                                                 fillMode: Image.Stretch
                                                                 source: "../assets/delete.png"
                                                             }

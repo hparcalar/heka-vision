@@ -336,8 +336,9 @@ class Gp7Connector:
                 self._socket.sendall(bytearray.fromhex(cmd))
                 retData = self._socket.recv(1024)
         except Exception as e:
-            print('read error: ')
-            print(e)
+            pass
+            # print('read error: ')
+            # print(e)
 
         self.__disconnect()
         self._busyByCommand = False
@@ -402,32 +403,37 @@ class Gp7Connector:
         self._busyByCommand = True
         self.__connect()
 
+        resultData = {
+            'Teach': False,
+            'Servo': False,
+            'Hold': False,
+            'Alarm': False,
+            'Play': False,
+            'Remote': False,
+        }
+
         try:
             cmd = statusReadMsg
             self._socket.settimeout(1.0)
             self._socket.sendall(bytearray.fromhex(cmd))
             retData = self._socket.recv(1024)
-            print(len(retData))
-            print(retData)
-            
-            print(bin(retData[31]))
-            print(bin(retData[32]))
-            print(bin(retData[33]))
-            print(bin(retData[34]))
-            print(bin(retData[35]))
-            print(bin(retData[36]))
-            print(bin(retData[37]))
-            print(bin(retData[38]))
+            if retData and len(retData) > 36:
+                data1 = retData[32]
+                data2 = retData[36]
 
-            data1 = retData[32]
-            data2 = retData[36]
+                resultData['Teach'] = (data1 & 32 != 0)
+                resultData['Servo'] = (data2 & 64 != 0)
+                resultData['Hold'] = (data2 & 4 != 0) or (data2 & 8 != 0)
+                resultData['Alarm'] = (data2 & 16 != 0)
+                resultData['Play'] = (data1 & 64 != 0)
+                resultData['Remote'] = (data1 & 16 != 0)
 
-            print(data2 & 64 != 0) # servo     
-            print(data2 & 2 != 0) # hold button
-            print(data2 & 16 != 0) # alarm status
-            print(data1 & 32 != 0) # teach
-            print(data1 & 64 != 0) # play
-            print(data1 & 16 != 0) # remote
+                # print(data2 & 64 != 0) # servo     
+                # print(data2 & 2 != 0) # hold button
+                # print(data2 & 16 != 0) # alarm status
+                # print(data1 & 32 != 0) # teach
+                # print(data1 & 64 != 0) # play
+                # print(data1 & 16 != 0) # remote
 
         except Exception as e:
             pass
@@ -435,5 +441,6 @@ class Gp7Connector:
 
         self.__disconnect()
         self._busyByCommand = False
+        return resultData
     
 

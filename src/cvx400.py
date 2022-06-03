@@ -118,7 +118,7 @@ class Cvx400:
             result, = self._proxy.read([('@0x68/0x01/0x69=(SINT)0','@0x68/0x01/0x69')],0)
             fRes = True
         except Exception as e:
-            print(e)
+            # print(e)
             fRes = False
         return fRes
 
@@ -153,7 +153,8 @@ class Cvx400:
         try:
             fRes, = self._proxy.read([('@0x04/0x64/0x03', 'SINT')]) # cvx 064, xgx 065
         except Exception as e:
-            print(e)
+            pass
+            # print(e)
 
         self.__disconnect()
         self._busyByCommand = False
