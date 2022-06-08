@@ -1,6 +1,7 @@
-from datetime import time, datetime
+from datetime import time, datetime, timedelta
 from peewee import *
 from playhouse.shortcuts import model_to_dict, dict_to_model
+from src.printManager import printLabel
 
 
 db = SqliteDatabase('data/heka.db')
@@ -432,7 +433,7 @@ def deleteShift(shiftId):
 
 
 # TEST RESULTS CRUD
-def saveTestResult(model):
+def saveTestResult(model, printAfterSave = True):
     result = { 'Result': False, 'ErrorMessage': '', 'RecordId': 0 }
     try:
         dbObj = TestResult()
@@ -445,11 +446,49 @@ def saveTestResult(model):
         dbObj.shift = Shift.get(Shift.id == model['shiftId']) if not model['shiftId'] == None else None
         dbObj.employee = Employee.get(Employee.id == model['employeeId']) if not model['employeeId'] == None else None
         dbObj.isOk = model['isOk']
+
+        dtNow = datetime.now().strftime('%Y-%m-%d')
+        dtEnd = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+
+        currentCount = TestResult.select()\
+            .where((TestResult.testDate >= dtNow) & (TestResult.testDate < dtEnd))\
+            .count()
+        productSerial = datetime.now().strftime('%Y%m%d') + str(currentCount + 1).zfill(5)
+        dbObj.barcode = productSerial
         
         dbObj.save()
 
+        # save step details and images
+        if "steps" in model.keys() and not model['steps'] == None:
+            for st in model['steps']:
+                relatedImages = []
+                stepImagePath = ''
+                filteredSections = list(filter(lambda x: x['id'] == st['sectionId'], model['sections']))
+                if filteredSections and len(filteredSections) > 0:
+                    relatedImages = filteredSections[0]['images']
+                    for rImg in relatedImages:
+                        stepImagePath = stepImagePath + rImg + ';' 
+
+                stepObj = TestResultImage()
+                stepObj.imagePath = stepImagePath
+                stepObj.testResult = dbObj
+                stepObj.step = ProductTestStep.get(ProductTestStep.id == st['id'])
+                stepObj.stepResult = st['liveResult']
+                stepObj.save()
+                
+
         result['Result'] = True
         result['RecordId'] = dbObj.id
+
+        if printAfterSave == True:
+            empObj = model_to_dict(Employee.select(Employee.employeeName).where(Employee.id == model['employeeId']).get())
+            shiftObj = model_to_dict(Shift.select(Shift.shiftCode).where(Shift.id == model['shiftId']).get())
+            printLabel({
+                'employeeName': empObj['employeeName'],
+                'result': model['isOk'],
+                'shiftCode': shiftObj['shiftCode'],
+                'barcode': productSerial,
+            })
     except Exception as e:
         result['Result'] = False
         result['ErrorMessage'] = str(e)
@@ -463,9 +502,12 @@ def getLiveStats(productId = None, shiftId = None):
     result = { 'Live': { }, 'Steps': [] }
 
     try:
+        dtNow = datetime.now().strftime('%Y-%m-%d')
+        dtEnd = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+
         # shift based data
-        okCount = TestResult.select().where((TestResult.shift == shiftId) & (TestResult.isOk == True)).count()
-        nokCount = TestResult.select().where((TestResult.shift == shiftId) & (TestResult.isOk == False)).count()
+        okCount = TestResult.select().where((TestResult.shift == shiftId) & (TestResult.testDate >= dtNow) & (TestResult.testDate < dtEnd) & (TestResult.isOk == True)).count()
+        nokCount = TestResult.select().where((TestResult.shift == shiftId) & (TestResult.testDate >= dtNow) & (TestResult.testDate < dtEnd) & (TestResult.isOk == False)).count()
 
         result['Live']['totalCount'] = okCount + nokCount
         result['Live']['faultCount'] = nokCount
@@ -476,11 +518,51 @@ def getLiveStats(productId = None, shiftId = None):
             if prData and prData['steps']:
                 for st in prData['steps']:
                     st['faultCount'] = TestResult.select().where((TestResult.shift == shiftId) & (TestResult.product == productId) 
+                        & (TestResult.testDate >= dtNow) & (TestResult.testDate < dtEnd) 
                         & (TestResult.isOk == False) & (TestResult.step == st['id'])).count()
                     result['Steps'].append(st)
     except:
         pass
     
+    return result
+
+
+def getReportStats(dateStrStart: str, dateStrEnd: str):
+    result = None
+    try:
+        dtStartParts = dateStrStart.split('.')
+        dtEndParts = dateStrEnd.split('.')
+
+        dtStart = dtStartParts[2] + '-' + dtStartParts[1] + '-' + dtStartParts[0]
+        dtEnd = dtEndParts[2] + '-' + dtEndParts[1] + '-' + dtEndParts[0]
+        tmpDate:datetime = (datetime.strptime(dtEnd, '%Y-%m-%d') + timedelta(days=1))
+        dtEnd = tmpDate.strftime('%Y-%m-%d')
+
+        # shift based table
+        shiftData = list(TestResult.select(Shift.id, Shift.shiftCode, fn.COUNT().alias('count'))\
+            .join(Shift).where((TestResult.testDate >= dtStart) & (TestResult.testDate < dtEnd)).group_by(Shift.id, Shift.shiftCode).dicts())
+        for sh in shiftData:
+            sh['okCount'] = TestResult.select().where((TestResult.testDate >= dtStart) & (TestResult.testDate < dtEnd) & (TestResult.isOk == True) & (TestResult.shift == sh['id'])).count()
+            sh['nokCount'] = TestResult.select().where((TestResult.testDate >= dtStart) & (TestResult.testDate < dtEnd) & (TestResult.isOk == False) & (TestResult.shift == sh['id'])).count()
+
+        # employee based table
+        employeeData = list(TestResult.select(Employee.id, Employee.employeeName, fn.COUNT(TestResult.id).alias('count'))\
+            .join(Employee).where((TestResult.testDate >= dtStart) & (TestResult.testDate <= dtEnd)).group_by(Employee).dicts())
+        for emp in employeeData:
+            emp['okCount'] = TestResult.select().where((TestResult.testDate >= dtStart) & (TestResult.testDate < dtEnd) & (TestResult.isOk == True) & (TestResult.employee == emp['id'])).count()
+            emp['nokCount'] = TestResult.select().where((TestResult.testDate >= dtStart) & (TestResult.testDate < dtEnd) & (TestResult.isOk == False) & (TestResult.employee == emp['id'])).count()
+
+        # steps based pie data
+        stepsData = list(TestResultImage.select(ProductTestStep.testName, fn.COUNT(TestResultImage.id).alias('count'))\
+            .join(ProductTestStep).join(TestResult).where((TestResult.testDate >= dtStart) & (TestResult.testDate < dtEnd) & (TestResult.isOk == False)).group_by(ProductTestStep).dicts())
+
+        result = {}
+        result['ShiftData'] = shiftData
+        result['EmployeeData'] = employeeData
+        result['StepsData'] = stepsData
+    except Exception as e:
+        pass
+
     return result
 
 
@@ -611,6 +693,7 @@ class TestResult(BaseModel):
 class TestResultImage(BaseModel):
     id = AutoField()
     imagePath = CharField(null=True)
+    stepResult = BooleanField(null=True)
     step = ForeignKeyField(ProductTestStep, backref='resultImages', null=True)
     section = ForeignKeyField(ProductSection, backref='resultImages', null=True)
     testResult = ForeignKeyField(TestResult, backref='resultImages', null=True)

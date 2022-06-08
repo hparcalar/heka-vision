@@ -16,7 +16,10 @@ class TestManager:
         self._activeStepIndex = 0
         self._stepStatus = False
         self._isTestRunning = False
-        
+
+        self._nextStepIsArrivedHome = False
+        self._nextStepArrivingIsWaiting = False
+
         self._barrierThread = None
         self._lightBarrierOk = False
         self._barrierThreadRun = False
@@ -30,20 +33,22 @@ class TestManager:
         self._activeStepIndex = self._activeStepIndex + 1
         try:
             if len(self._product['steps']) <= self._activeStepIndex:
-
                 self._isTestRunning = False
                 self._barrierThreadRun = False
                 self._stepStatus = False
                 self._activeStepIndex = 0
 
+                self._robot.writeInteger(0, 0)
+                self._robot.writeBit(3, 1)
+
                 try:
                     self.__stopHatchCheckThread()
                     self.openHatch()
                     self.__moveRobotToHome()
-                    self._robot.writeBit(3,0)
+                    # self._robot.writeBit(3,0)
                     self.__stopBarrierThread()
                     self._backend.raiseAllStepsFinished()
-                except:
+                except Exception as e:
                     pass
 
         except:
@@ -109,6 +114,7 @@ class TestManager:
             self._robot.writeBit(1, 0)
             safetyHomeData = self._comConfig['rbToSafetyHome'].split(':')
             self.__writeToRobot(safetyHomeData, int(safetyHomeData[2]))
+            sleep(0.2)
             self._robot.writeBit(3, 0)
 
             # WAIT UNTIL ROBOT ARRIVES AT SAFETY HOME
@@ -164,6 +170,9 @@ class TestManager:
 
             self._robot.startJob()
             self._backend.raiseStartOk()
+
+            self._robot.writeInteger(0, 0)
+            self._robot.writeBit(3, 1)
 
             moveHomeResult = self.__moveRobotToHome()
             if moveHomeResult == False:
@@ -282,10 +291,14 @@ class TestManager:
 
                         diffInSec = (dtCheck - dtCmdStart).seconds
                         if diffInSec >= 5:
+                            testRunning = self._isTestRunning
                             self._closeHatchCommandActivated = False
                             self.stopClosingHatch()
                             self.setRobotHold(True)
-                            self.__raiseError('Kapak kapalı değil. Test durduruldu.')
+
+                            if testRunning == True:
+                                self.__raiseError('Kapak kapalı değil. Test durduruldu.')
+
                             break
                     else:
                         self._closeHatchCommandActivated = False
@@ -293,6 +306,34 @@ class TestManager:
                 pass
             sleep(0.2)
     
+
+    def __waitForStartPosArrived(self, readyToStartData):
+        self._nextStepArrivingIsWaiting = True
+        self._nextStepIsArrivedHome = False
+
+        sleep(0.2)
+
+        tryCount = 0
+        arrivePosData = readyToStartData.split(':')
+        onPos = self.__readFromRobot(arrivePosData)
+        while not onPos or int(onPos) != int(arrivePosData[2]):
+            if self._isTestRunning == False:
+                return
+
+            onPos = self.__readFromRobot(arrivePosData)
+            sleep(0.1)
+            tryCount = tryCount + 1
+            if tryCount > 300: # max timeout 10 sn
+                self._robot.writeInteger(0,0)
+                self._robot.writeBit(3, 1)
+                if self._isTestRunning == True:
+                    self.__raiseError('Robot Beklenen Pozisyona Getirilemedi.')
+                    self._nextStepArrivingIsWaiting = False
+                return
+
+        self._nextStepIsArrivedHome = True
+        self._nextStepArrivingIsWaiting = False
+
 
     def stopTest(self):
         self._stepStatus = False
@@ -359,15 +400,18 @@ class TestManager:
             
 
             self._isTestRunning = True
+            # self._hatchIsClosed = False
             self._product = productData
             self._activeStepIndex = 0
 
             self.__startBarrierThread()
             sleep(0.05)
-            # self.setVacuum(1)
-            # self.closeHatch()
 
-            # sleep(0.1)
+            # start close hatch control
+            self.setVacuum(1)
+            self.closeHatch()
+
+            # sleep(0.1) disabled below
             # while self._hatchIsClosed == False:
             #     if self._isTestRunning == False:
             #         return
@@ -399,8 +443,6 @@ class TestManager:
 
 
     def openHatch(self) -> bool:
-        # self._barrierThreadRun = True
-        # self.__startBarrierThread()
         self._lightBarrierOk = self.__checkLightBarrier()
 
         if self._lightBarrierOk == True:
@@ -421,8 +463,6 @@ class TestManager:
                     return False
 
             return True
-        # sleep(3)
-        # self._robot.writeExternalIo(2701, 0)
 
     
     def closeHatch(self, manuelClose = False) -> bool:
@@ -471,7 +511,6 @@ class TestManager:
 
             activeStep = self._product['steps'][self._activeStepIndex]
             if activeStep and activeStep['camRecipe']:
-                # print(self._activeStepIndex)
                 self._stepStatus = True
                 recipe = activeStep['camRecipe']
                 
@@ -485,7 +524,6 @@ class TestManager:
 
                 # SELECT RECIPE FROM CAMERA
                 recipeNoData = recipe['recipeCode'].split(':')
-                # print('Reçete:' +  recipeNoData[1])
                 camRes = self._camera.selectProgram(recipeNoData[0], recipeNoData[1])
                 if not camRes:
                     if self._isTestRunning == True:
@@ -501,49 +539,50 @@ class TestManager:
 
 
                 # SEND ROBOT GOTO START POSITION OF CURRENT STEP
+                rbGotoPositionData = recipe['rbToRecipeStarted'].split(':')
                 if self._activeStepIndex == 0:
                     rbGotoPositionData = recipe['rbToRecipeStarted'].split(':')
-                    print('JOB: ' + str(rbGotoPositionData[2]))
-                    self._robot.writeInteger(0,0)
-                    # sleep(0.1)
-                    self._robot.writeBit(3, 1)
-                    # sleep(0.1)
+                    self._robot.writeBit(0,0)
                     self.__writeToRobot(rbGotoPositionData, int(rbGotoPositionData[2]))
-                    
-                    # sleep(0.5)
-                    # self._robot.writeBit(3, 0)
 
                 if self._stepStatus == False:
                     return
 
                 # WAIT UNTIL ROBOT ARRIVES AT POSITION OF CURRENT STEP
-                tryCount = 0
-                arrivePosData = recipe['rbFromReadyToStart'].split(':')
-                onPos = self.__readFromRobot(arrivePosData)
-                while not onPos or int(onPos) != int(arrivePosData[2]):
-                    if self._isTestRunning == False:
-                        return
-
+                if self._activeStepIndex == 0:
+                    tryCount = 0
+                    arrivePosData = recipe['rbFromReadyToStart'].split(':')
                     onPos = self.__readFromRobot(arrivePosData)
-                    # print('POZİSYON BAŞ VARIŞ: ' + str(onPos))
-                    sleep(0.1)
-                    tryCount = tryCount + 1
-                    if tryCount > 300: # max timeout 10 sn
-                        self._robot.writeInteger(0,0)
-                        # sleep(0.1)
-                        self._robot.writeBit(3, 1)
-                        if self._isTestRunning == True:
-                            self.__raiseError('Robot Beklenen Pozisyona Getirilemedi.')
-                        return
+                    while not onPos or int(onPos) != int(arrivePosData[2]):
+                        if self._isTestRunning == False:
+                            return
 
-                self._robot.writeInteger(0,0)
-                sleep(0.1)
-                self._robot.writeBit(3, 1)
+                        onPos = self.__readFromRobot(arrivePosData)
+                        sleep(0.1)
+                        tryCount = tryCount + 1
+                        if tryCount > 300: # max timeout 10 sn
+                            self._robot.writeInteger(0,0)
+                            self._robot.writeBit(3, 1)
+                            if self._isTestRunning == True:
+                                self.__raiseError('Robot Beklenen Pozisyona Getirilemedi.')
+                            return
+                else:
+                    while self._nextStepIsArrivedHome == False:
+                        if self._stepStatus == False:
+                            return
+                        sleep(0.1)
 
                 self.__raiseStartPosArrived()
 
-                # SEND ROBOT START TO SCAN
-                self.__writeToRobot(rbToStartScanningData, int(rbToStartScanningData[2]))
+
+                # ENABLE CAMERA TRIGGER
+                trgResult = self._camera.triggerCamera()
+                if not trgResult:
+                    self.__raiseError('Kamerayı Otomatik(Run) Moda Alınız')
+                    return
+
+                if self._stepStatus == False:
+                    return
 
                 # APPLY RECIPE START DELAY
                 if recipe['startDelay'] and int(recipe['startDelay'] > 0):
@@ -552,11 +591,9 @@ class TestManager:
                 if self._stepStatus == False:
                     return
 
-                # ENABLE CAMERA TRIGGER
-                trgResult = self._camera.triggerCamera()
-                if not trgResult:
-                    self.__raiseError('Kamerayı Otomatik(Run) Moda Alınız')
-                    return
+                # SEND ROBOT START TO SCAN
+                self.__writeToRobot(rbToStartScanningData, int(rbToStartScanningData[2]))
+                self._robot.writeBit(3, 0)
 
                 if self._stepStatus == False:
                     return
@@ -573,7 +610,6 @@ class TestManager:
                         return
 
                     onPos = self.__readFromRobot(scanEndPosData)
-                    # print('POZİSYON BİTİŞ VARIŞ: ' + str(onPos))
                     sleep(0.1)
                     tryCount = tryCount + 1
                     if tryCount > 300: # max timeout 10 sn
@@ -581,30 +617,35 @@ class TestManager:
                             self.__raiseError('Robot Bölge Taramasını Tamamlayamadı')
                         return
 
-
                 # SEND ROBOT GOTO START POSITION OF NEXT STEP
+                self._nextStepIsArrivedHome = False
                 if self._activeStepIndex + 1 < len(self._product['steps']):
-                    print('NEXT')
+                    # while self._nextStepArrivingIsWaiting == True:
+                    #     sleep(0.1)
+
+                    self._robot.writeInteger(0, 0)
+                    self._robot.writeBit(3, 1)
+
                     nextStep = self._product['steps'][self._activeStepIndex + 1]
                     nextRecipe = nextStep['camRecipe']
+
+                    # DISABLE SCAN TRIGGER OF NEXT STEP
+                    rbToStartScanningDataNext = nextRecipe['rbToStartScanning'].split(':')
+                    self.__writeToRobot(rbToStartScanningDataNext, 0)
+
                     rbGotoPositionDataNext = nextRecipe['rbToRecipeStarted'].split(':')
-                    print('JOB: ' + str(rbGotoPositionDataNext[2]))
-                    self._robot.writeInteger(0,0)
-                    # sleep(0.1)
-                    self._robot.writeBit(3, 1)
-                    # sleep(0.1)
+                    
+                    self._robot.writeBit(0,0)
                     self.__writeToRobot(rbGotoPositionDataNext, int(rbGotoPositionDataNext[2]))
-                    # sleep(0.1)
-                    # self._robot.writeBit(3, 1)
-                    # sleep(0.2)
-                    # self._robot.writeBit(3, 0)
+                    posArrivedThr = HekaThread(target=self.__waitForStartPosArrived, args=[nextRecipe['rbFromReadyToStart']])
+                    posArrivedThr.start()
 
 
                 # UPDATE! = WAIT UNTIL CAMERA OUTPUT IS READY
-                # sleep(0.3)
                 tryCount = 0
                 isOutputReady = self._camera.isOutputReady()
                 while isOutputReady == False:
+                    # print('KAMERA BEKLENİYOR')
                     if self._stepStatus == False:
                         return
 
@@ -619,7 +660,6 @@ class TestManager:
                         if self._isTestRunning == True:
                             self.__raiseError('Kamera Output Bilgisi Alınamadı')
                         return
-                    
 
                 if self._stepStatus == False:
                     return
@@ -634,6 +674,7 @@ class TestManager:
                         bIndex = 0
                         testResult = True
                         while bIndex < int(resultFormat[1]):
+                            # print('BINDEX')
                             testResult = camResult[int(resultFormat[0]) + int(bIndex * 4)] == 0
                             
                             if testResult == False:
@@ -642,16 +683,10 @@ class TestManager:
                 except Exception:
                     pass
 
-                # RESET PROGRAM
-                if self._activeStepIndex + 1 >= len(self._product['steps']):
-                    self._robot.writeInteger(0, 0)
-                    # sleep(0.1)
-                    self._robot.writeBit(3, 1)
-
-
                 self.__raiseStepResult(testResult, str(activeStep['id']))
                 
-                # sleep(5)  
+                sleep(1) # wait for capture image store to ftp
+                # sleep(7)  
 
                 if self._stepStatus == False:
                     self.stopTest()

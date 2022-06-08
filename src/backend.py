@@ -83,6 +83,7 @@ class BackendManager(QObject):
     getNewImageResult = Signal(str, int)
     getCaptureImage = Signal(str)
     getRobotHoldChanged= Signal(bool)
+    getReportStats = Signal(str)
     # endregion
     
     # region THR FUNCTIONS
@@ -347,6 +348,13 @@ class BackendManager(QObject):
         data = getLiveStats(productId if productId > 0 else None, shiftId if shiftId > 0 else None)
         if data:
             self.getLiveStatus.emit(json.dumps(data))
+
+
+    @Slot(str, str)
+    def requestReportStats(self, startDate, endDate):
+        data = getReportStats(startDate, endDate)
+        if data:
+            self.getReportStats.emit(json.dumps(data))
 
 
     @Slot(str)

@@ -3,6 +3,8 @@ import QtQuick.Controls 2.14
 import QtQuick.Window 2.14
 import QtQuick.Layouts 1.2
 import QtGraphicalEffects 1.0
+import QtCharts 2.14
+import QtQuick.Controls 1.4 as ControlsEx
 
 Item{
     id: settingsFormContainer
@@ -10,6 +12,14 @@ Item{
     property variant productList: []
     property variant employeeList: []
     property variant shiftList: []
+
+    property variant reportShiftData: []
+    property variant reportEmployeeData: []
+    property variant reportStepsData: []
+
+    property bool calendarStartVisible: false
+    property bool calendarEndVisible: false
+
     property var settingsModel: new Object({ id:0 })
 
     // ON LOAD EVENT
@@ -184,6 +194,22 @@ Item{
             else
                 lblSaveSettingsResult.text = postResult.ErrorMessage;
         }
+
+        function onGetReportStats(data){
+            const reportData = JSON.parse(data);
+            if (reportData){
+                rptReportShifts.model = reportData.ShiftData ?? [];
+                rptReportEmployees.model = reportData.EmployeeData ?? [];
+
+                pieSeries.clear();
+                if (reportData.StepsData != null){
+                    for (let i = 0; i < reportData.StepsData.length; i++) {
+                        const element = reportData.StepsData[i];
+                        pieSeries.append(element.testName + '<br /><b> <h4>'+ element.count +' ADET</h4></b>', element.count);
+                    }
+                }
+            }
+        }
     }
 
     // FORM COMPONENTS
@@ -332,8 +358,18 @@ Item{
                     icon.source: "../assets/report.png"
                     font.pixelSize: 18
                     onClicked: function(){
-                        if (tabContent.currentItem != reportTab)
+                        if (tabContent.currentItem != reportTab){
+                            const dtNow = new Date();
+                            let dtEnd = new Date();
+                            dtEnd.setMonth(dtEnd.getMonth() - 1);
+
+                            txtReportStartDate.text = dtEnd.getDate().toString().padStart(2,'0') + '.' + (dtEnd.getMonth() + 1).toString().padStart(2,'0') + dtEnd.getFullYear().toString();
+                            txtReportEndDate.text = dtNow.getDate().toString().padStart(2,'0') + '.' + (dtNow.getMonth() + 1).toString().padStart(2,'0') + dtNow.getFullYear().toString();
+                            
+                            backend.requestReportStats(txtReportStartDate.text, txtReportEndDate.text);
+
                             tabContent.replace(tabContent.currentItem, reportTab);
+                        }
                     }
                 }
             }
@@ -1572,7 +1608,612 @@ Item{
                 }
                 Item{
                     id: reportTab
-                    Rectangle{ anchors.fill: parent}
+                    visible: tabContent.currentItem == reportTab
+                    Rectangle{ 
+                        anchors.fill: parent
+                        color: "transparent"
+
+                        ControlsEx.Calendar {
+                            id: calendarStartDate
+                            width: 300
+                            visible: calendarStartVisible
+                            anchors.top: parent.top
+                            anchors.left: parent.left
+                            locale: Qt.locale("tr")
+                            onClicked: function(date){
+                                calendarStartVisible = false;
+                                txtReportStartDate.text = date.getDate().toString().padStart(2,'0') + '.' + (date.getMonth() + 1).toString().padStart(2,'0') + date.getFullYear().toString();
+                                backend.requestReportStats(txtReportStartDate.text, txtReportEndDate.text);
+                            }
+                            z:9999
+                        }
+
+                        ControlsEx.Calendar {
+                            id: calendarEndDate
+                            width: 300
+                            visible: calendarEndVisible
+                            anchors.top: parent.top
+                            anchors.left: parent.left
+                            anchors.leftMargin: 305
+                            locale: Qt.locale("tr")
+                            onClicked: function(date){
+                                calendarEndVisible = false;
+                                txtReportEndDate.text = date.getDate().toString().padStart(2,'0') + '.' + (date.getMonth() + 1).toString().padStart(2,'0') + date.getFullYear().toString();
+                                backend.requestReportStats(txtReportStartDate.text, txtReportEndDate.text);
+                            }
+                            z:9999
+                        }
+
+                        ColumnLayout{
+                            anchors.fill: parent
+
+                            // REPORT DATE FILTERS
+                            Rectangle{
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 50
+                                color: "transparent"
+
+                                RowLayout{
+                                    anchors.fill: parent
+
+                                    TextField {
+                                        id: txtReportStartDate
+                                        Layout.fillHeight: true
+                                        Layout.preferredWidth: 300
+                                        inputMask: '00.00.0000'
+                                        font.pixelSize: 14
+                                        padding: 5
+                                        background: Rectangle {
+                                            radius: 5
+                                            border.color: parent.focus ? "#326195" : "#888"
+                                            border.width: 1
+                                            color: parent.focus ? "#efefef" : "#ffffff"
+                                        }
+
+                                        MouseArea{
+                                            anchors.fill: parent
+                                            onClicked: function(){
+                                                const dtStr = txtReportStartDate.text.split('.');
+                                                calendarStartDate.selectedDate = new Date(dtStr[2] + '-'+ dtStr[1] +'-'+ dtStr[0] +'T00:00:00Z')
+                                                calendarEndVisible = false;
+                                                calendarStartVisible = true;
+                                            }
+                                        }
+                                    }
+
+                                    TextField {
+                                        id: txtReportEndDate
+                                        Layout.fillHeight: true
+                                        Layout.preferredWidth: 300
+                                        inputMask: '00.00.0000'
+                                        font.pixelSize: 14
+                                        padding: 5
+                                        background: Rectangle {
+                                            radius: 5
+                                            border.color: parent.focus ? "#326195" : "#888"
+                                            border.width: 1
+                                            color: parent.focus ? "#efefef" : "#ffffff"
+                                        }
+
+                                        MouseArea{
+                                            anchors.fill: parent
+                                            onClicked: function(){
+                                                const dtStr = txtReportEndDate.text.split('.');
+                                                calendarEndDate.selectedDate = new Date(dtStr[2] + '-'+ dtStr[1] +'-'+ dtStr[0] +'T00:00:00Z')
+                                                calendarStartVisible = false;
+                                                calendarEndVisible = true;
+                                            }
+                                        }
+                                    }
+
+                                    Rectangle{
+                                        Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        color: "transparent"
+                                    }
+                                }
+                            }
+
+                            // REPORT CONTENT
+                            Rectangle{
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                color: "transparent"
+
+                                MouseArea{
+                                    anchors.fill: parent
+                                    z:9998
+                                    onClicked: function(){
+                                        calendarStartVisible = false;
+                                        calendarEndVisible = false;
+                                    }
+                                }
+
+                                RowLayout{
+                                    anchors.fill: parent
+                                    spacing: 5
+                                    
+                                    // TABLE REPORTS
+                                    Rectangle{
+                                        Layout.preferredWidth: parent.width * 0.5
+                                        Layout.fillHeight: true
+                                        color: "transparent"
+
+                                        ColumnLayout{
+                                            anchors.fill: parent
+                                            spacing: 0
+
+                                            // TABLE BASED ON SHIFT DATA
+                                            Rectangle{
+                                                Layout.fillWidth: true
+                                                Layout.preferredHeight: parent.height * 0.5
+                                                color: "transparent"
+
+                                                ColumnLayout{
+                                                    anchors.fill: parent
+
+                                                    // TABLE HEADER
+                                                    Rectangle{
+                                                        Layout.fillWidth: true
+                                                        Layout.preferredHeight: 50
+                                                        Layout.alignment: Qt.AlignTop
+                                                        color: "#dfdfdf"
+                                                        border.color: "#888"
+                                                        border.width: 1
+
+                                                        RowLayout{
+                                                            anchors.fill: parent
+                                                            spacing: 0
+
+                                                            Rectangle{
+                                                                Layout.preferredWidth: parent.width * 0.4
+                                                                Layout.fillHeight: true
+                                                                color: "transparent"
+
+                                                                Text {
+                                                                    width: parent.width
+                                                                    height: parent.height
+                                                                    horizontalAlignment: Text.AlignLeft
+                                                                    verticalAlignment: Text.AlignVCenter
+                                                                    color:"#333"
+                                                                    padding: 2
+                                                                    leftPadding: 10
+                                                                    font.pixelSize: 18
+                                                                    font.underline: true
+                                                                    font.bold: true
+                                                                    text: "Vardiya"
+                                                                }
+                                                            }
+
+                                                            Rectangle{
+                                                                Layout.preferredWidth: parent.width * 0.2
+                                                                Layout.fillHeight: true
+                                                                color: "transparent"
+
+                                                                Text {
+                                                                    width: parent.width
+                                                                    height: parent.height
+                                                                    horizontalAlignment: Text.Text.AlignHCenter
+                                                                    verticalAlignment: Text.AlignVCenter
+                                                                    color:"#333"
+                                                                    padding: 2
+                                                                    leftPadding: 10
+                                                                    font.pixelSize: 18
+                                                                    font.underline: true
+                                                                    font.bold: true
+                                                                    text: "Hatalı"
+                                                                }
+                                                            }
+
+                                                            Rectangle{
+                                                                Layout.preferredWidth: parent.width * 0.2
+                                                                Layout.fillHeight: true
+                                                                color: "transparent"
+
+                                                                Text {
+                                                                    width: parent.width
+                                                                    height: parent.height
+                                                                    horizontalAlignment: Text.Text.AlignHCenter
+                                                                    verticalAlignment: Text.AlignVCenter
+                                                                    color:"#333"
+                                                                    padding: 2
+                                                                    leftPadding: 10
+                                                                    font.pixelSize: 18
+                                                                    font.underline: true
+                                                                    font.bold: true
+                                                                    text: "Ok"
+                                                                }
+                                                            }
+
+                                                            Rectangle{
+                                                                Layout.preferredWidth: parent.width * 0.2
+                                                                Layout.fillHeight: true
+                                                                color: "transparent"
+
+                                                                Text {
+                                                                    width: parent.width
+                                                                    height: parent.height
+                                                                    horizontalAlignment: Text.Text.AlignHCenter
+                                                                    verticalAlignment: Text.AlignVCenter
+                                                                    color:"#333"
+                                                                    padding: 2
+                                                                    leftPadding: 10
+                                                                    font.pixelSize: 18
+                                                                    font.underline: true
+                                                                    font.bold: true
+                                                                    text: "Toplam"
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+
+                                                    // TABLE CONTENT
+                                                    Rectangle{
+                                                        Layout.fillWidth: true
+                                                        Layout.fillHeight: true
+                                                        color: "transparent"
+
+                                                        ScrollView{
+                                                            anchors.fill: parent
+                                                            spacing: 0
+
+                                                            ColumnLayout{
+                                                                anchors.fill:parent
+                                                                spacing: 1
+                                                                Repeater{
+                                                                    id: rptReportShifts
+
+                                                                    Rectangle {
+                                                                        Layout.fillWidth: true
+                                                                        Layout.preferredHeight: 30
+                                                                        Layout.alignment: Qt.AlignTop
+                                                                        color: "#efefef"
+
+                                                                        RowLayout{
+                                                                            anchors.fill: parent
+                                                                            spacing: 0
+
+                                                                            LinearGradient {
+                                                                                Layout.preferredWidth: parent.width * 0.4
+                                                                                Layout.fillHeight: true
+                                                                                start: Qt.point(0, 0)
+                                                                                end: Qt.point(width, 0)
+                                                                                gradient: Gradient {
+                                                                                    GradientStop { position: 0.0; color: "#efefef" }
+                                                                                    GradientStop { position: 1.0; color: "#efefef" }
+                                                                                }
+
+                                                                                Text {
+                                                                                    width: parent.width
+                                                                                    height: parent.height
+                                                                                    horizontalAlignment: Text.AlignLeft
+                                                                                    verticalAlignment: Text.AlignVCenter
+                                                                                    color:"#333"
+                                                                                    padding: 2
+                                                                                    leftPadding: 10
+                                                                                    minimumPointSize: 5
+                                                                                    font.pointSize: 14
+                                                                                    fontSizeMode: Text.Fit
+                                                                                    font.bold: true
+                                                                                    text: modelData.shiftCode
+                                                                                }
+                                                                            }
+
+                                                                            Rectangle{
+                                                                                Layout.preferredWidth: parent.width * 0.2
+                                                                                Layout.fillHeight: true
+                                                                                color: "transparent"
+
+                                                                                Text {
+                                                                                    width: parent.width
+                                                                                    height: parent.height
+                                                                                    horizontalAlignment: Text.AlignHCenter
+                                                                                    verticalAlignment: Text.AlignVCenter
+                                                                                    color:"#333"
+                                                                                    padding: 2
+                                                                                    minimumPointSize: 5
+                                                                                    font.pointSize: 14
+                                                                                    fontSizeMode: Text.Fit
+                                                                                    text: modelData.nokCount
+                                                                                }
+                                                                            }
+
+                                                                            Rectangle{
+                                                                                Layout.preferredWidth: parent.width * 0.2
+                                                                                Layout.fillHeight: true
+                                                                                color: "transparent"
+
+                                                                                Text {
+                                                                                    width: parent.width
+                                                                                    height: parent.height
+                                                                                    horizontalAlignment: Text.AlignHCenter
+                                                                                    verticalAlignment: Text.AlignVCenter
+                                                                                    color:"#333"
+                                                                                    padding: 2
+                                                                                    minimumPointSize: 5
+                                                                                    font.pointSize: 14
+                                                                                    fontSizeMode: Text.Fit
+                                                                                    text: modelData.okCount
+                                                                                }
+                                                                            }
+
+                                                                            Rectangle{
+                                                                                Layout.preferredWidth: parent.width * 0.2
+                                                                                Layout.fillHeight: true
+                                                                                color: "transparent"
+
+                                                                                Text {
+                                                                                    width: parent.width
+                                                                                    height: parent.height
+                                                                                    horizontalAlignment: Text.AlignHCenter
+                                                                                    verticalAlignment: Text.AlignVCenter
+                                                                                    color:"#333"
+                                                                                    padding: 2
+                                                                                    minimumPointSize: 5
+                                                                                    font.pointSize: 14
+                                                                                    fontSizeMode: Text.Fit
+                                                                                    text: modelData.count
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            // TABLE BASED ON EMPLOYEE DATA
+                                            Rectangle{
+                                                Layout.fillWidth: true
+                                                Layout.preferredHeight: parent.height * 0.5
+                                                color: "transparent"
+
+                                                ColumnLayout{
+                                                    anchors.fill: parent
+
+                                                    // TABLE HEADER
+                                                    Rectangle{
+                                                        Layout.fillWidth: true
+                                                        Layout.preferredHeight: 50
+                                                        Layout.alignment: Qt.AlignTop
+                                                        color: "#dfdfdf"
+                                                        border.color: "#888"
+                                                        border.width: 1
+
+                                                        RowLayout{
+                                                            anchors.fill: parent
+                                                            spacing: 0
+
+                                                            Rectangle{
+                                                                Layout.preferredWidth: parent.width * 0.4
+                                                                Layout.fillHeight: true
+                                                                color: "transparent"
+
+                                                                Text {
+                                                                    width: parent.width
+                                                                    height: parent.height
+                                                                    horizontalAlignment: Text.AlignLeft
+                                                                    verticalAlignment: Text.AlignVCenter
+                                                                    color:"#333"
+                                                                    padding: 2
+                                                                    leftPadding: 10
+                                                                    font.pixelSize: 18
+                                                                    font.underline: true
+                                                                    font.bold: true
+                                                                    text: "Personel"
+                                                                }
+                                                            }
+
+                                                            Rectangle{
+                                                                Layout.preferredWidth: parent.width * 0.2
+                                                                Layout.fillHeight: true
+                                                                color: "transparent"
+
+                                                                Text {
+                                                                    width: parent.width
+                                                                    height: parent.height
+                                                                    horizontalAlignment: Text.Text.AlignHCenter
+                                                                    verticalAlignment: Text.AlignVCenter
+                                                                    color:"#333"
+                                                                    padding: 2
+                                                                    leftPadding: 10
+                                                                    font.pixelSize: 18
+                                                                    font.underline: true
+                                                                    font.bold: true
+                                                                    text: "Hatalı"
+                                                                }
+                                                            }
+
+                                                            Rectangle{
+                                                                Layout.preferredWidth: parent.width * 0.2
+                                                                Layout.fillHeight: true
+                                                                color: "transparent"
+
+                                                                Text {
+                                                                    width: parent.width
+                                                                    height: parent.height
+                                                                    horizontalAlignment: Text.Text.AlignHCenter
+                                                                    verticalAlignment: Text.AlignVCenter
+                                                                    color:"#333"
+                                                                    padding: 2
+                                                                    leftPadding: 10
+                                                                    font.pixelSize: 18
+                                                                    font.underline: true
+                                                                    font.bold: true
+                                                                    text: "OK"
+                                                                }
+                                                            }
+
+                                                            Rectangle{
+                                                                Layout.preferredWidth: parent.width * 0.2
+                                                                Layout.fillHeight: true
+                                                                color: "transparent"
+
+                                                                Text {
+                                                                    width: parent.width
+                                                                    height: parent.height
+                                                                    horizontalAlignment: Text.Text.AlignHCenter
+                                                                    verticalAlignment: Text.AlignVCenter
+                                                                    color:"#333"
+                                                                    padding: 2
+                                                                    leftPadding: 10
+                                                                    font.pixelSize: 18
+                                                                    font.underline: true
+                                                                    font.bold: true
+                                                                    text: "Toplam"
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+
+                                                    // TABLE CONTENT
+                                                    Rectangle{
+                                                        Layout.fillWidth: true
+                                                        Layout.fillHeight: true
+                                                        color: "transparent"
+
+                                                        ScrollView{
+                                                            anchors.fill: parent
+                                                            spacing: 0
+
+                                                            ColumnLayout{
+                                                                anchors.fill:parent
+                                                                spacing: 1
+                                                                Repeater{
+                                                                    id: rptReportEmployees
+
+                                                                    Rectangle {
+                                                                        Layout.fillWidth: true
+                                                                        Layout.preferredHeight: 30
+                                                                        Layout.alignment: Qt.AlignTop
+                                                                        color: "#efefef"
+
+                                                                        RowLayout{
+                                                                            anchors.fill: parent
+                                                                            spacing: 0
+
+                                                                            LinearGradient {
+                                                                                Layout.preferredWidth: parent.width * 0.4
+                                                                                Layout.fillHeight: true
+                                                                                start: Qt.point(0, 0)
+                                                                                end: Qt.point(width, 0)
+                                                                                gradient: Gradient {
+                                                                                    GradientStop { position: 0.0; color: "#efefef" }
+                                                                                    GradientStop { position: 1.0; color: "#efefef" }
+                                                                                }
+
+                                                                                Text {
+                                                                                    width: parent.width
+                                                                                    height: parent.height
+                                                                                    horizontalAlignment: Text.AlignLeft
+                                                                                    verticalAlignment: Text.AlignVCenter
+                                                                                    color:"#333"
+                                                                                    padding: 2
+                                                                                    leftPadding: 10
+                                                                                    minimumPointSize: 5
+                                                                                    font.pointSize: 14
+                                                                                    fontSizeMode: Text.Fit
+                                                                                    font.bold: true
+                                                                                    text: modelData.employeeName
+                                                                                }
+                                                                            }
+
+                                                                            Rectangle{
+                                                                                Layout.preferredWidth: parent.width * 0.2
+                                                                                Layout.fillHeight: true
+                                                                                color: "transparent"
+
+                                                                                Text {
+                                                                                    width: parent.width
+                                                                                    height: parent.height
+                                                                                    horizontalAlignment: Text.AlignHCenter
+                                                                                    verticalAlignment: Text.AlignVCenter
+                                                                                    color:"#333"
+                                                                                    padding: 2
+                                                                                    minimumPointSize: 5
+                                                                                    font.pointSize: 14
+                                                                                    fontSizeMode: Text.Fit
+                                                                                    text: modelData.nokCount
+                                                                                }
+                                                                            }
+
+                                                                            Rectangle{
+                                                                                Layout.preferredWidth: parent.width * 0.2
+                                                                                Layout.fillHeight: true
+                                                                                color: "transparent"
+
+                                                                                Text {
+                                                                                    width: parent.width
+                                                                                    height: parent.height
+                                                                                    horizontalAlignment: Text.AlignHCenter
+                                                                                    verticalAlignment: Text.AlignVCenter
+                                                                                    color:"#333"
+                                                                                    padding: 2
+                                                                                    minimumPointSize: 5
+                                                                                    font.pointSize: 14
+                                                                                    fontSizeMode: Text.Fit
+                                                                                    text: modelData.okCount
+                                                                                }
+                                                                            }
+
+                                                                            Rectangle{
+                                                                                Layout.preferredWidth: parent.width * 0.2
+                                                                                Layout.fillHeight: true
+                                                                                color: "transparent"
+
+                                                                                Text {
+                                                                                    width: parent.width
+                                                                                    height: parent.height
+                                                                                    horizontalAlignment: Text.AlignHCenter
+                                                                                    verticalAlignment: Text.AlignVCenter
+                                                                                    color:"#333"
+                                                                                    padding: 2
+                                                                                    minimumPointSize: 5
+                                                                                    font.pointSize: 14
+                                                                                    fontSizeMode: Text.Fit
+                                                                                    text: modelData.count
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // PIE CHARTS BASED ON STEP RESULTS
+                                    Rectangle{
+                                        Layout.preferredWidth: parent.width * 0.5 - 5
+                                        Layout.fillHeight: true
+                                        color: "#888"
+
+                                        ChartView {
+                                            id: chart
+                                            title: "Hata Bölgesi İstatistikleri"
+                                            anchors.fill: parent
+                                            legend.visible: false
+                                            antialiasing: true
+
+                                            PieSeries {
+                                                id: pieSeries
+                                                onAdded: function(slices){
+                                                    slices.forEach(d => {
+                                                        d.labelVisible = true;
+                                                    });
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }                        
+                    }
                 }
             }
         }

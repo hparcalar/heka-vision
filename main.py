@@ -6,11 +6,12 @@ import sys
 from PySide2.QtGui import QGuiApplication
 from PySide2.QtCore import QObject, Slot, Signal
 from PySide2.QtQml import QQmlApplicationEngine
+from PySide2.QtWidgets import QApplication
 import PySide2.QtMultimedia
 from src.backend import BackendManager
 
 if __name__ == "__main__":
-    app = QGuiApplication(sys.argv)
+    app = QApplication(sys.argv)
     engine = QQmlApplicationEngine()
 
     app.setOrganizationName("Heka Robotics")

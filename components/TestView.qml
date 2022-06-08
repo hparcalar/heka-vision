@@ -321,7 +321,7 @@ Item{
             tmpIsValid = false;
             selectionValidMsg = 'Ürün seçiniz';
         }
-        else if (activeEmployee == null && activeEmployee.id <= 0){
+        else if (activeEmployee == null || activeEmployee.id <= 0){
             tmpIsValid = false;
             selectionValidMsg = 'Kartınızı Okutun';
         }
@@ -347,7 +347,8 @@ Item{
                 shiftId: activeShift && activeShift.id > 0 ? activeShift.id : null,
                 employeeId: activeEmployee && activeEmployee.id > 0 ? activeEmployee.id : null,
                 isOk: testResult,
-                images: [] // all parts images will be saved
+                steps: activeProduct.steps, // for saving step detail results
+                sections: activeProduct.sections, // for saving section based image results
             }));
         }
     }
@@ -480,11 +481,11 @@ Item{
                     foundStep.liveResult = stepRes.Result;
 
                     // save fault step result before reset
-                    if (stepRes.Result == false){
-                        saveTestResult(false);
-                        lastTestStatus = 2;
-                        // testRunning = false;
-                    }
+                    // if (stepRes.Result == false){
+                    //     saveTestResult(false);
+                    //     lastTestStatus = 2;
+                    //     // testRunning = false;
+                    // }
 
                     const foundStepIndex = activeProduct.steps.indexOf(foundStep);
                     const nextStep = activeProduct.steps.length > (foundStepIndex + 1) ?
@@ -502,10 +503,10 @@ Item{
         }
 
         function onGetAllStepsFinished(){
-            saveTestResult(true);
+            const finalTestResult = !activeProduct.steps.some(d => d.liveResult == false);
+            saveTestResult(finalTestResult);
 
-            if (lastTestStatus != 2) // if any error doesnt exist during all steps
-                lastTestStatus = 1;
+            lastTestStatus = finalTestResult == true ? 1 : 2;
 
             btnReset.enabled = true;
             btnMasterJobCall.enabled = false;

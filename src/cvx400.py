@@ -76,7 +76,7 @@ class Cvx400:
         fRes = False
         try:
             sck = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sck.settimeout(5.0)
+            sck.settimeout(9.0)
             sck.connect((self._hostIp, self._hostPort))
             sck.send(bytearray('PW,'+ str(sdCardNo) +','+ str(programNo) +'\r', 'ascii'))
             resp = sck.recv(1024)
