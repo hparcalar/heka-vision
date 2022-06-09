@@ -1,10 +1,11 @@
 from datetime import time, datetime, timedelta
 from peewee import *
 from playhouse.shortcuts import model_to_dict, dict_to_model
-from src.printManager import printLabel
+from src.printManager import PrintManager
 
 
 db = SqliteDatabase('data/heka.db')
+printer = PrintManager()
 
 
 def create_tables():
@@ -453,7 +454,7 @@ def saveTestResult(model, printAfterSave = True):
         currentCount = TestResult.select()\
             .where((TestResult.testDate >= dtNow) & (TestResult.testDate < dtEnd))\
             .count()
-        productSerial = datetime.now().strftime('%Y%m%d') + str(currentCount + 1).zfill(5)
+        productSerial = datetime.now().strftime('%Y%m%d%H%M') + str(currentCount + 1).zfill(5)
         dbObj.barcode = productSerial
         
         dbObj.save()
@@ -483,7 +484,7 @@ def saveTestResult(model, printAfterSave = True):
         if printAfterSave == True:
             empObj = model_to_dict(Employee.select(Employee.employeeName).where(Employee.id == model['employeeId']).get())
             shiftObj = model_to_dict(Shift.select(Shift.shiftCode).where(Shift.id == model['shiftId']).get())
-            printLabel({
+            printer.printLabel({
                 'employeeName': empObj['employeeName'],
                 'result': model['isOk'],
                 'shiftCode': shiftObj['shiftCode'],
@@ -517,9 +518,9 @@ def getLiveStats(productId = None, shiftId = None):
             prData = getProduct(productId)
             if prData and prData['steps']:
                 for st in prData['steps']:
-                    st['faultCount'] = TestResult.select().where((TestResult.shift == shiftId) & (TestResult.product == productId) 
+                    st['faultCount'] = TestResultImage.select().join(TestResult).where((TestResult.shift == shiftId) & (TestResult.product == productId) 
                         & (TestResult.testDate >= dtNow) & (TestResult.testDate < dtEnd) 
-                        & (TestResult.isOk == False) & (TestResult.step == st['id'])).count()
+                        & (TestResultImage.stepResult == False) & (TestResultImage.step == st['id'])).count()
                     result['Steps'].append(st)
     except:
         pass

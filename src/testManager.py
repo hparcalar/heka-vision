@@ -33,8 +33,7 @@ class TestManager:
         self._activeStepIndex = self._activeStepIndex + 1
         try:
             if len(self._product['steps']) <= self._activeStepIndex:
-                self._isTestRunning = False
-                self._barrierThreadRun = False
+                # self._isTestRunning = False
                 self._stepStatus = False
                 self._activeStepIndex = 0
 
@@ -45,14 +44,18 @@ class TestManager:
                     self.__stopHatchCheckThread()
                     self.openHatch()
                     self.__moveRobotToHome()
-                    # self._robot.writeBit(3,0)
+                    
+                    self._barrierThreadRun = False
+                    self._isTestRunning = False
                     self.__stopBarrierThread()
                     self._backend.raiseAllStepsFinished()
+                    
                 except Exception as e:
                     pass
 
         except:
             pass
+
 
     def __raiseError(self, msg):
         self.stopTest()
@@ -235,11 +238,12 @@ class TestManager:
     def __loopBarrierThread(self):
         #pass
         while self._isTestRunning == True or self._barrierThreadRun == True:
+
             try:
                 self._lightBarrierOk = self.__checkLightBarrier()
                 if self._lightBarrierOk == False:
-                    self.__raiseError('Müdahale tespit edildi. Test durduruldu.')
                     self.setRobotHold(True)
+                    self.__raiseError('Müdahale tespit edildi. Test durduruldu.')
                     self._barrierThreadRun = False
                     break
                 sleep(0.05)

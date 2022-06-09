@@ -1019,6 +1019,7 @@ Item{
                 color: "transparent"
 
                 Image {
+                    id: imgDetails
                     anchors.centerIn: parent
                     sourceSize.height: parent.height
                     fillMode: Image.PreserveAspectFit
@@ -1162,6 +1163,7 @@ Item{
                             Image {
                                 Layout.fillHeight: true
                                 Layout.fillWidth: true
+                                asynchronous: true
                                 sourceSize.height: parent.height
                                 fillMode: Image.Stretch
                                 source: modelData
