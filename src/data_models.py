@@ -12,7 +12,7 @@ def create_tables():
     with db:
         db.create_tables([Product, Employee, Shift, 
             ProductSection, ProductCamRecipe, ProductTestStep, 
-            TestResult, TestResultImage,LiveResult, LiveProduction, ComConfig])
+            TestResult, TestResultImage,LiveResult, LiveProduction, ComConfig, StepVariable])
 
 # PRODUCT CRUD
 def getProductList():
@@ -245,6 +245,81 @@ def deleteProduct(productId):
         result['Result'] = False
         result['ErrorMessage'] = str(e)
 
+    return result
+
+
+# VARIABLE CRUD
+def getVariableList(stepId: int):
+    data = []
+    try:
+        rawData = StepVariable.select().where(StepVariable.step == stepId).dicts()
+        data = list(rawData)
+    except:
+        pass
+    return data
+
+
+def getAllVariableList():
+    data = []
+    try:
+        rawData = StepVariable.select().dicts()
+        data = list(rawData)
+    except:
+        pass
+    return data
+
+
+def saveStepVariables(stepId: int, varList):
+    result = { 'Result': False, 'ErrorMessage': '', 'RecordId': 0 }
+    try:
+        for d in varList:
+            dbVar:StepVariable = None
+            try:
+                dbVar = StepVariable.get(StepVariable.id == d['id'])
+            except:
+                pass
+
+            sameVarExists = True
+            try:
+                dbOther = StepVariable.get((StepVariable.id != d['id']) & (StepVariable.variableName == d['variableName']))
+                if not dbOther:
+                    sameVarExists = False
+            except:
+                sameVarExists = False
+
+            if sameVarExists == True:
+                continue
+
+            if not dbVar:
+                dbVar = StepVariable()
+
+            dbVar.variableName = d['variableName']
+            dbVar.variableValue = d['variableValue']
+            dbVar.description = d['description']
+            dbVar.step = ProductTestStep.get(ProductTestStep.id == stepId)
+            dbVar.save()
+
+        result['Result'] = True
+    except Exception as e:
+        print(e)
+        result['Result'] = False
+        result['ErrorMessage'] = str(e)
+
+    return result
+
+
+def deleteVariable(variableId: int):
+    result = { 'Result': False, 'ErrorMessage': '', 'RecordId': 0 }
+    try:
+        dbVar:StepVariable = StepVariable.get(StepVariable.id == variableId)
+
+        if dbVar:
+            dbVar.delete_instance()
+
+        result['Result'] = True
+    except Exception as e:
+        result['Result'] = False
+        result['ErrorMessage'] = str(e)
     return result
 
 
@@ -600,6 +675,7 @@ def saveConfig(model):
         dbObj.rbToSafetyHome = model['rbToSafetyHome']
         dbObj.valfPrm = model['valfPrm']
         dbObj.isFullPrm = model['isFullPrm']
+        dbObj.testWithVacuum = model['testWithVacuum']
 
         dbObj.save()
         result['Result'] = True
@@ -726,3 +802,13 @@ class ComConfig(BaseModel):
     rbToSafetyHome = CharField(null=True)
     rbFromSafetyHome = CharField(null=True)
     rbToMasterJob = CharField(null=True)
+    testWithVacuum = BooleanField(null=True)
+
+
+class StepVariable(BaseModel):
+    id = AutoField()
+    step = ForeignKeyField(ProductTestStep, backref='variables', null=True)
+    variableName = CharField(null=True)
+    description = CharField(null=True)
+    variableValue = IntegerField(null=True)
+

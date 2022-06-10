@@ -19,6 +19,9 @@ Popup {
     property var recipeModel: new Object({ id:0 })
     property var stepModel: new Object({ id:0 })
 
+    property string lastCode: ""
+    property string lastCategory: ""
+
     FileDialog {
         id: fileDialog
         title: "Lütfen dizin seçiniz"
@@ -80,19 +83,24 @@ Popup {
 
     function saveModel(){
         waitingIcon.visible = true;
+
+        let processFlag = false;
         delay(200, function(){
-            backend.saveProduct(JSON.stringify({
-                id: recordId,
-                productNo: txtProductCode.text,
-                productName: txtProductName.text,
-                imagePath: 'test.png',
-                isActive: true,
-                gridWidth: parseInt(txtGridWidth.text),
-                gridHeight: parseInt(txtGridHeight.text),
-                sections: modelObject.sections,
-                recipes: modelObject.recipes,
-                steps: modelObject.steps,
-            }));
+            if (processFlag == false){
+                backend.saveProduct(JSON.stringify({
+                    id: recordId,
+                    productNo: txtProductCode.text,
+                    productName: txtProductName.text,
+                    imagePath: 'test.png',
+                    isActive: true,
+                    gridWidth: parseInt(txtGridWidth.text),
+                    gridHeight: parseInt(txtGridHeight.text),
+                    sections: modelObject.sections,
+                    recipes: modelObject.recipes,
+                    steps: modelObject.steps,
+                }));
+                processFlag = true;
+            }
         });
     }
 
@@ -145,6 +153,9 @@ Popup {
 
         if (!modelObject.sections.includes(sectionModel))
             modelObject.sections.push(sectionModel);
+
+        lastCode = sectionModel.sectionName;
+        lastCategory = "section";
 
         saveModel();
         // bindSectionList();
@@ -207,6 +218,9 @@ Popup {
 
         if (!modelObject.recipes.includes(recipeModel))
             modelObject.recipes.push(recipeModel);
+
+        lastCode = recipeModel.recipeCode;
+        lastCategory = "recipe";
 
         saveModel();
     }
@@ -283,6 +297,9 @@ Popup {
 
         if (!modelObject.steps.includes(stepModel))
             modelObject.steps.push(stepModel);
+
+        lastCode = stepModel.testName;
+        lastCategory = "step";
 
         saveModel();
     }
@@ -373,6 +390,13 @@ Popup {
             rptSteps.model = modelObject.steps.sort((a,b) => a.orderNo - b.orderNo);
     }
 
+    function showStepVariables(stepId){
+         var popup = cmpStepVariables.createObject(popupContainer.parent, {
+            stepId: stepId
+        });
+        popup.open();
+    }
+
     // BACKEND SIGNALS & SLOTS
     Connections {
         target: backend
@@ -408,8 +432,23 @@ Popup {
                     });
                 }
 
-                cmbStepSection.currentIndex = -1;
-                cmbStepSection.currentIndex = -1;
+                // cmbStepSection.currentIndex = -1;
+                // cmbStepSection.currentIndex = -1;
+
+                if (lastCategory.length > 0){
+                    if (lastCategory == "section"){
+                        showSection(0, lastCode);
+                    }
+                    else if (lastCategory == "recipe"){
+                        showRecipe(0, lastCode);
+                    }
+                    else if (lastCategory == "step"){
+                        showStep(0, lastCode);
+                    }
+
+                    lastCategory = "";
+                    lastCode = "";
+                }
             }
         }
 
@@ -450,6 +489,13 @@ Popup {
         onYes: {
             visible = false;
             deleteModel();
+        }
+    }
+
+    Component{
+        id: cmpStepVariables
+        StepVariableForm{
+            stepId: 0
         }
     }
 
@@ -2724,6 +2770,7 @@ Popup {
                                                     Layout.fillWidth: true
                                                     Layout.alignment: Qt.AlignTop
                                                     Layout.margins: 2
+                                                    Layout.topMargin: 5
                                                     color: "transparent"
 
                                                     RowLayout{
@@ -2773,6 +2820,34 @@ Popup {
                                                                 sourceSize.height: 20
                                                                 fillMode: Image.Stretch
                                                                 source: "../assets/delete.png"
+                                                            }
+                                                        }
+                                                    }
+                                                }
+
+                                                // VARIABLES BUTTON
+                                                Rectangle{
+                                                    Layout.preferredHeight: 30
+                                                    Layout.fillWidth: true
+                                                    Layout.alignment: Qt.AlignTop
+                                                    Layout.margins: 2
+                                                    color: "transparent"
+
+                                                    Button{
+                                                        onClicked: function(){
+                                                            showStepVariables(stepModel.id);
+                                                        }
+                                                        id: btnStepVars
+                                                        anchors.fill: parent
+                                                        text: "DEĞİŞKENLER"
+                                                        padding: 5
+                                                        background: Rectangle {
+                                                            border.width: btnStepVars.activeFocus ? 2 : 1
+                                                            border.color: "#333"
+                                                            radius: 4
+                                                            gradient: Gradient {
+                                                                GradientStop { position: 0 ; color: btnStepVars.pressed ? "#AAA" : "#dedede" }
+                                                                GradientStop { position: 1 ; color: btnStepVars.pressed ? "#dedede" : "#AAA" }
                                                             }
                                                         }
                                                     }

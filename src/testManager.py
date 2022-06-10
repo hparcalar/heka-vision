@@ -16,6 +16,7 @@ class TestManager:
         self._activeStepIndex = 0
         self._stepStatus = False
         self._isTestRunning = False
+        self._testWithVacuum = True
 
         self._nextStepIsArrivedHome = False
         self._nextStepArrivingIsWaiting = False
@@ -339,10 +340,20 @@ class TestManager:
         self._nextStepArrivingIsWaiting = False
 
 
+    def setGlobalVars(self, varList):
+        if self._camera:
+            self._camera.setGlobalVars(varList)
+
+
+    def setTestWithVacuum(self, enabled: bool):
+        self._testWithVacuum = enabled
+
+
     def stopTest(self):
         self._stepStatus = False
         self._isTestRunning = False
         self._barrierThreadRun = False
+        self.setVacuum(0)
         sleep(1)
         self._activeStepIndex = 0
         self.__stopBarrierThread()
@@ -412,7 +423,7 @@ class TestManager:
             sleep(0.05)
 
             # start close hatch control
-            self.setVacuum(1)
+            # self.setVacuum(1)
             self.closeHatch()
 
             # sleep(0.1) disabled below
@@ -452,8 +463,8 @@ class TestManager:
         if self._lightBarrierOk == True:
             self._robot.writeExternalIo(2702, 0) # disable down signal
             sleep(0.1)
-            self.setVacuum(0)
-            sleep(0.2)
+            # self.setVacuum(0)
+            # sleep(0.2)
             self._robot.writeExternalIo(2701, 1) # enable up signal
 
             tryCount = 0
@@ -595,6 +606,10 @@ class TestManager:
                 if self._stepStatus == False:
                     return
 
+                # START VACUUM BEFORE SCANNING
+                if self._testWithVacuum == True:
+                    self.setVacuum(1)
+
                 # SEND ROBOT START TO SCAN
                 self.__writeToRobot(rbToStartScanningData, int(rbToStartScanningData[2]))
                 self._robot.writeBit(3, 0)
@@ -620,6 +635,8 @@ class TestManager:
                         if self._isTestRunning == True:
                             self.__raiseError('Robot Bölge Taramasını Tamamlayamadı')
                         return
+
+                self.setVacuum(0)
 
                 # SEND ROBOT GOTO START POSITION OF NEXT STEP
                 self._nextStepIsArrivedHome = False

@@ -90,6 +90,27 @@ class Cvx400:
         return fRes
 
 
+    def setGlobalVars(self, varList) -> bool:
+        try:
+            sck = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sck.settimeout(9.0)
+            sck.connect((self._hostIp, self._hostPort))
+
+            for vr in varList:
+                try:
+                    sck.send(bytearray('MW,'+ vr['variableName'] +','+ str(vr['variableValue']) +'\r', 'ascii'))
+                    vrChangeResult = sck.recv(1024)
+                except:
+                    pass
+
+            sck.close()
+            pass
+        except:
+            pass
+
+        return False
+
+
     def triggerCamera(self) -> bool:
         self.__waitForAvailable()
 

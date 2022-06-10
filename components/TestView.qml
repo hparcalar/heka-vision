@@ -2155,7 +2155,7 @@ Item{
                                             Text {
                                                 Layout.fillWidth: true
                                                 horizontalAlignment: Text.AlignRight
-                                                color: "red" //"#32a852"
+                                                color: "#32a852"
                                                 padding: 1
                                                 rightPadding: 10
                                                 minimumPointSize: 5
@@ -2163,7 +2163,7 @@ Item{
                                                 font.pointSize: 12
                                                 fontSizeMode: Text.Fit
                                                 font.bold: true
-                                                text: ": NOK"
+                                                text: ": OK"
                                             }
                                         }
                                     }
@@ -2194,7 +2194,7 @@ Item{
                                             Text {
                                                 Layout.fillWidth: true
                                                 horizontalAlignment: Text.AlignRight
-                                                color: "red" //"#32a852"
+                                                color: "#32a852"
                                                 padding: 1
                                                 rightPadding: 10
                                                 minimumPointSize: 5
@@ -2202,7 +2202,7 @@ Item{
                                                 font.pointSize: 12
                                                 fontSizeMode: Text.Fit
                                                 font.bold: true
-                                                text: ": NOK"
+                                                text: ": OK"
                                             }
                                         }
                                     }

@@ -109,6 +109,7 @@ Item{
             settingsModel.rbToMasterJob = txtStgRbToMasterJob.text;
             settingsModel.rbToSafetyHome = txtStgRbToSafetyHome.text;
             settingsModel.valfPrm = txtStgValfPrm.text;
+            settingsModel.testWithVacuum = chkTestWithVacuum.checked;
 
             backend.saveSettings(JSON.stringify(settingsModel));
         } catch (error) {
@@ -182,6 +183,7 @@ Item{
                 txtStgRbToMasterJob.text = (settingsModel.rbToMasterJob ?? '');
                 txtStgRbToSafetyHome.text = (settingsModel.rbToSafetyHome ?? '');
                 txtStgValfPrm.text = (settingsModel.valfPrm ?? '');
+                chkTestWithVacuum.checked = (settingsModel.testWithVacuum ?? false);
             } catch (error) {
                 console.log(error);
             }
@@ -1548,6 +1550,36 @@ Item{
                                             border.width: 1
                                             color: parent.focus ? "#efefef" : "#ffffff"
                                         }
+                                    }
+                                }
+                            }
+
+                            // TEST WITH VACUUM PRM
+                            Rectangle{
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 50
+                                Layout.alignment: Qt.AlignTop
+                                Layout.margins: 2
+                                color: "transparent"
+
+                                ColumnLayout{
+                                    anchors.fill: parent
+
+                                    Label{
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: 15
+                                        Layout.alignment: Qt.AlignTop
+                                        horizontalAlignment: Text.AlignLeft
+                                        text:'Tarama Esnasında Vakum Çalıştır'
+                                        font.pixelSize: 12
+                                    }
+
+                                    CheckBox {
+                                        id: chkTestWithVacuum
+                                        checked: false
+                                        Layout.fillHeight: true
+                                        // Layout.fillWidth: true
+                                        padding: 10
                                     }
                                 }
                             }

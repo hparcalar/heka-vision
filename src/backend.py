@@ -84,6 +84,10 @@ class BackendManager(QObject):
     getCaptureImage = Signal(str)
     getRobotHoldChanged= Signal(bool)
     getReportStats = Signal(str)
+
+    getStepVariables = Signal(str)
+    saveStepVariableFinished = Signal(str)
+    deleteStepVariableFinished = Signal(str)
     # endregion
     
     # region THR FUNCTIONS
@@ -180,7 +184,7 @@ class BackendManager(QObject):
     
     # endregion
 
-    # COMM SLOTS
+    # region COMM SLOTS
     @Slot()
     def startCommCheck(self):
         self.runCommChecker = True
@@ -242,8 +246,15 @@ class BackendManager(QObject):
     def __resetTest(self, productId):
         productData = getProduct(productId)
         if productData:
-            self.testManager.startTest(productData)
+            stgModel = getConfig()
+            self.testManager.setTestWithVacuum(stgModel['testWithVacuum'])
 
+            globalVars = getAllVariableList()
+            if globalVars:
+                self.testManager.setGlobalVars(globalVars)
+
+            self.testManager.startTest(productData)
+    # endregion
 
     # SLOTS
     @Slot()
@@ -364,6 +375,27 @@ class BackendManager(QObject):
             captureImage = self.dirManager.getCaptureImage(camImage)
             if captureImage:
                 self.getCaptureImage.emit(captureImage)
+
+    
+    # region VARIABLE SLOTS
+    @Slot(int)
+    def requestStepVariables(self, stepId: int):
+        data = getVariableList(stepId)
+        if data:
+            self.getStepVariables.emit(json.dumps(data))
+
+    @Slot(int, str)
+    def saveStepVariables(self, stepId: int, data: str):
+        data = saveStepVariables(stepId, json.loads(data))
+        if data:
+            self.saveStepVariableFinished.emit(json.dumps(data))
+
+    @Slot(int)
+    def deleteVariable(self, variableId: int):
+        data = deleteVariable(variableId)
+        if data:
+            self.deleteStepVariableFinished.emit(json.loads(data))
+    # endregion
 
 
     # PRODUCT SLOTS
