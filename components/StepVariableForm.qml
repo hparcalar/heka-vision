@@ -744,7 +744,7 @@ Popup {
                                                 color: parent.focus ? "#efefef" : "#ffffff"
                                             }
 
-                                            validator: IntValidator {bottom: -500; top: 500}
+                                            // validator: IntValidator {bottom: -500; top: 500}
                                         }
 
                                         // INC & DEC BUTTONS
