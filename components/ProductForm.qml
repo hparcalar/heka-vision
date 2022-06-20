@@ -397,6 +397,13 @@ Popup {
         popup.open();
     }
 
+    function showSectionRegions(sectionId){
+         var popup = cmpSectionRegions.createObject(popupContainer.parent, {
+            sectionId: sectionId
+        });
+        popup.open();
+    }
+
     // BACKEND SIGNALS & SLOTS
     Connections {
         target: backend
@@ -496,6 +503,13 @@ Popup {
         id: cmpStepVariables
         StepVariableForm{
             stepId: 0
+        }
+    }
+
+    Component{
+        id: cmpSectionRegions
+        SectionRegionForm{
+            sectionId: 0
         }
     }
 
@@ -699,6 +713,9 @@ Popup {
                                     Layout.fillWidth: true
                                     font.pixelSize: 16
                                     padding: 10
+                                    onFocusChanged: function(){
+                                        backend.requestOsk(focus);
+                                    }
                                     background: Rectangle {
                                         radius: 5
                                         border.color: parent.focus ? "#326195" : "#888"
@@ -734,6 +751,9 @@ Popup {
                                     Layout.fillHeight: true
                                     Layout.fillWidth: true
                                     font.pixelSize: 16
+                                    onFocusChanged: function(){
+                                        backend.requestOsk(focus);
+                                    }
                                     padding: 10
                                     background: Rectangle {
                                         radius: 5
@@ -900,6 +920,9 @@ Popup {
                                                                     Layout.fillHeight: true
                                                                     Layout.fillWidth: true
                                                                     font.pixelSize: 9
+                                                                    onFocusChanged: function(){
+                                                                        backend.requestOsk(focus);
+                                                                    }
                                                                     padding: 2
                                                                     onTextChanged: bindGridSchema()
                                                                     background: Rectangle {
@@ -938,6 +961,9 @@ Popup {
                                                                     id: txtGridHeight
                                                                     Layout.fillHeight: true
                                                                     Layout.fillWidth: true
+                                                                    onFocusChanged: function(){
+                                                                        backend.requestOsk(focus);
+                                                                    }
                                                                     font.pixelSize: 9
                                                                     onTextChanged: bindGridSchema()
                                                                     padding: 2
@@ -1302,6 +1328,9 @@ Popup {
                                                                     id: txtSectionName
                                                                     Layout.fillHeight: true
                                                                     Layout.fillWidth: true
+                                                                    onFocusChanged: function(){
+                                                                        backend.requestOsk(focus);
+                                                                    }
                                                                     font.pixelSize: 9
                                                                     padding: 2
                                                                     background: Rectangle {
@@ -1340,6 +1369,9 @@ Popup {
                                                                     id: txtSectionAreaNo
                                                                     Layout.fillHeight: true
                                                                     Layout.fillWidth: true
+                                                                    onFocusChanged: function(){
+                                                                        backend.requestOsk(focus);
+                                                                    }
                                                                     font.pixelSize: 9
                                                                     padding: 2
                                                                     background: Rectangle {
@@ -1378,6 +1410,9 @@ Popup {
                                                                     id: txtSectionOrder
                                                                     Layout.fillHeight: true
                                                                     Layout.fillWidth: true
+                                                                    onFocusChanged: function(){
+                                                                        backend.requestOsk(focus);
+                                                                    }
                                                                     font.pixelSize: 9
                                                                     padding: 2
                                                                     background: Rectangle {
@@ -1427,6 +1462,9 @@ Popup {
                                                                             Layout.fillHeight: true
                                                                             Layout.fillWidth: true
                                                                             font.pixelSize: 9
+                                                                            onFocusChanged: function(){
+                                                                                backend.requestOsk(focus);
+                                                                            }
                                                                             padding: 2
                                                                             background: Rectangle {
                                                                                 radius: 5
@@ -1463,6 +1501,9 @@ Popup {
                                                                             id: txtSectionPosY
                                                                             Layout.fillHeight: true
                                                                             Layout.fillWidth: true
+                                                                            onFocusChanged: function(){
+                                                                                backend.requestOsk(focus);
+                                                                            }
                                                                             font.pixelSize: 9
                                                                             padding: 2
                                                                             background: Rectangle {
@@ -1513,6 +1554,9 @@ Popup {
                                                                             id: txtSectionWidth
                                                                             Layout.fillHeight: true
                                                                             Layout.fillWidth: true
+                                                                            onFocusChanged: function(){
+                                                                                backend.requestOsk(focus);
+                                                                            }
                                                                             font.pixelSize: 9
                                                                             padding: 2
                                                                             background: Rectangle {
@@ -1550,6 +1594,9 @@ Popup {
                                                                             id: txtSectionHeight
                                                                             Layout.fillHeight: true
                                                                             Layout.fillWidth: true
+                                                                            onFocusChanged: function(){
+                                                                                backend.requestOsk(focus);
+                                                                            }
                                                                             font.pixelSize: 9
                                                                             padding: 2
                                                                             background: Rectangle {
@@ -1619,6 +1666,34 @@ Popup {
                                                                         sourceSize.height: 20
                                                                         fillMode: Image.Stretch
                                                                         source: "../assets/delete.png"
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+
+                                                        // SUB REGIONS BUTTON
+                                                        Rectangle{
+                                                            Layout.preferredHeight: 30
+                                                            Layout.fillWidth: true
+                                                            Layout.alignment: Qt.AlignTop
+                                                            Layout.margins: 2
+                                                            color: "transparent"
+
+                                                            Button{
+                                                                onClicked: function(){
+                                                                    showSectionRegions(sectionModel.id);
+                                                                }
+                                                                id: btnSectionRegions
+                                                                anchors.fill: parent
+                                                                text: "ALT BÖLGELER"
+                                                                padding: 5
+                                                                background: Rectangle {
+                                                                    border.width: btnSectionRegions.activeFocus ? 2 : 1
+                                                                    border.color: "#333"
+                                                                    radius: 4
+                                                                    gradient: Gradient {
+                                                                        GradientStop { position: 0 ; color: btnSectionRegions.pressed ? "#AAA" : "#dedede" }
+                                                                        GradientStop { position: 1 ; color: btnSectionRegions.pressed ? "#dedede" : "#AAA" }
                                                                     }
                                                                 }
                                                             }
@@ -1902,6 +1977,9 @@ Popup {
                                                             id: txtRecipeCode
                                                             Layout.fillHeight: true
                                                             Layout.fillWidth: true
+                                                            onFocusChanged: function(){
+                                                                backend.requestOsk(focus);
+                                                            }
                                                             font.pixelSize: 9
                                                             padding: 2
                                                             background: Rectangle {
@@ -1940,6 +2018,9 @@ Popup {
                                                             id: txtRecipeCamResultByteIndex
                                                             Layout.fillHeight: true
                                                             Layout.fillWidth: true
+                                                            onFocusChanged: function(){
+                                                                backend.requestOsk(focus);
+                                                            }
                                                             font.pixelSize: 9
                                                             padding: 2
                                                             background: Rectangle {
@@ -1978,6 +2059,9 @@ Popup {
                                                             id: txtRecipeStartDelay
                                                             Layout.fillHeight: true
                                                             Layout.fillWidth: true
+                                                            onFocusChanged: function(){
+                                                                backend.requestOsk(focus);
+                                                            }
                                                             font.pixelSize: 9
                                                             padding: 2
                                                             background: Rectangle {
@@ -2028,6 +2112,9 @@ Popup {
                                                                     Layout.fillWidth: true
                                                                     font.pixelSize: 9
                                                                     padding: 2
+                                                                    onFocusChanged: function(){
+                                                                        backend.requestOsk(focus);
+                                                                    }
                                                                     background: Rectangle {
                                                                         radius: 5
                                                                         border.color: parent.focus ? "#326195" : "#888"
@@ -2063,6 +2150,9 @@ Popup {
                                                                     id: txtRecipeRbFromReadyToStart
                                                                     Layout.fillHeight: true
                                                                     Layout.fillWidth: true
+                                                                    onFocusChanged: function(){
+                                                                        backend.requestOsk(focus);
+                                                                    }
                                                                     font.pixelSize: 9
                                                                     padding: 2
                                                                     background: Rectangle {
@@ -2112,6 +2202,9 @@ Popup {
                                                                 TextField {
                                                                     id: txtRecipeRbToStartScan
                                                                     Layout.fillHeight: true
+                                                                    onFocusChanged: function(){
+                                                                        backend.requestOsk(focus);
+                                                                    }
                                                                     Layout.fillWidth: true
                                                                     font.pixelSize: 9
                                                                     padding: 2
@@ -2150,6 +2243,9 @@ Popup {
                                                                     id: txtRecipeRbFromScanningFinished
                                                                     Layout.fillHeight: true
                                                                     Layout.fillWidth: true
+                                                                    onFocusChanged: function(){
+                                                                        backend.requestOsk(focus);
+                                                                    }
                                                                     font.pixelSize: 9
                                                                     padding: 2
                                                                     background: Rectangle {
@@ -2628,6 +2724,9 @@ Popup {
                                                             id: txtStepTestName
                                                             Layout.fillHeight: true
                                                             Layout.fillWidth: true
+                                                            onFocusChanged: function(){
+                                                                backend.requestOsk(focus);
+                                                            }
                                                             font.pixelSize: 9
                                                             padding: 2
                                                             background: Rectangle {
@@ -2666,6 +2765,9 @@ Popup {
                                                             id: txtStepOrderNo
                                                             Layout.fillHeight: true
                                                             Layout.fillWidth: true
+                                                            onFocusChanged: function(){
+                                                                backend.requestOsk(focus);
+                                                            }
                                                             font.pixelSize: 9
                                                             padding: 2
                                                             background: Rectangle {

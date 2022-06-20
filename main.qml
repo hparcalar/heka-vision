@@ -7,9 +7,11 @@ import QtMultimedia 5.12
 import QtQuick.Dialogs 1.1
 import QtGraphicalEffects 1.0
 import QtQuick.Extras 1.4
+import QtQuick.VirtualKeyboard 2.14
 import "components"
 
 ApplicationWindow {
+    id: mainWindow
     width: screen.desktopAvailableWidth
     height: screen.desktopAvailableHeight
     // visibility: Window.FullScreen
@@ -51,6 +53,14 @@ ApplicationWindow {
         function onShowTestView(){
             contentLoader.replace(contentLoader.currentItem, cmpTestView);
             // contentLoader.sourceComponent = cmpTestView;
+        }
+
+        function onOskRequested(){
+            hekaKeyboard.visible = true;
+        }
+
+        function onOskClosed(){
+            hekaKeyboard.visible = false;
         }
     }
 
@@ -147,6 +157,20 @@ ApplicationWindow {
             //     Layout.fillWidth: true
             //     sourceComponent: cmpTestView
             // }
+        }
+
+        InputPanel {
+            id: hekaKeyboard
+            visible: false
+            anchors.fill: parent
+            anchors.leftMargin:mainWindow.width * 0.5
+            focus: true
+        }
+
+        Binding {
+            target: hekaKeyboard.keyboard.style
+            property: 'keyboardDesignHeight'
+            value: 750
         }
     }
 }

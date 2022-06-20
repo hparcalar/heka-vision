@@ -319,6 +319,9 @@ Popup {
                                     id: txtEmployeeCode
                                     Layout.fillHeight: true
                                     Layout.fillWidth: true
+                                    onFocusChanged: function(){
+                                            backend.requestOsk(focus);
+                                        }
                                     font.pixelSize: 16
                                     padding: 10
                                     background: Rectangle {
@@ -355,6 +358,9 @@ Popup {
                                     id: txtEmployeeName
                                     Layout.fillHeight: true
                                     Layout.fillWidth: true
+                                    onFocusChanged: function(){
+                                            backend.requestOsk(focus);
+                                        }
                                     font.pixelSize: 16
                                     padding: 10
                                     background: Rectangle {

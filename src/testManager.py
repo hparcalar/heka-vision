@@ -66,9 +66,9 @@ class TestManager:
     def __raiseStartPosArrived(self):
         self._backend.raiseStartPosArrived()
 
-    def __raiseStepResult(self, result, msg):
+    def __raiseStepResult(self, result, msg, detailedResult):
         if self._backend:
-            self._backend.raiseStepResult(result, msg)
+            self._backend.raiseStepResult(result, msg, detailedResult)
 
     def __createMaterials(self):
         if self._comConfig and self._updateMaterials == True:
@@ -202,9 +202,13 @@ class TestManager:
         if not self._robot:
             return False
 
-        retData = self._robot.readBarrier(2, 16)
+        retData = self._robot.readBarrier(2, 16) # light barrier
         if not retData == None:
             lightIsOk = retData != 0
+            if lightIsOk == True:
+                retData = self._robot.readBarrier(2, 2) # backdoor
+                if not retData == None:
+                    lightIsOk = retData != 0
             return lightIsOk
 
         return False
@@ -340,6 +344,14 @@ class TestManager:
         self._nextStepArrivingIsWaiting = False
 
 
+    def readStartButton(self):
+        if not self._robot:
+            return False
+
+        retData = self._robot.readExternalIo(2, 64)
+        return (not retData == None) and retData != 0
+
+
     def setGlobalVars(self, varList):
         if self._camera:
             self._camera.setGlobalVars(varList)
@@ -423,8 +435,7 @@ class TestManager:
             sleep(0.05)
 
             # start close hatch control
-            # self.setVacuum(1)
-            self.closeHatch()
+            # self.closeHatch()
 
             # sleep(0.1) disabled below
             # while self._hatchIsClosed == False:
@@ -636,6 +647,7 @@ class TestManager:
                             self.__raiseError('Robot Bölge Taramasını Tamamlayamadı')
                         return
 
+                # STOP VACUUM AFTER SCANNING
                 self.setVacuum(0)
 
                 # SEND ROBOT GOTO START POSITION OF NEXT STEP
@@ -662,7 +674,7 @@ class TestManager:
                     posArrivedThr.start()
 
 
-                # UPDATE! = WAIT UNTIL CAMERA OUTPUT IS READY
+                # WAIT UNTIL CAMERA OUTPUT IS READY
                 tryCount = 0
                 isOutputReady = self._camera.isOutputReady()
                 while isOutputReady == False:
@@ -687,7 +699,9 @@ class TestManager:
 
                 # READ INSPECTION RESULTS
                 testResult = False
+                testResultReadOnly = False
                 camResult = self._camera.readOutput()
+                detailedResults = [] # to hold byte indexes in order to recognize which defect tool is not good
 
                 try:
                     resultFormat = recipe['camResultFormat'].split(':')
@@ -695,19 +709,22 @@ class TestManager:
                         bIndex = 0
                         testResult = True
                         while bIndex < int(resultFormat[1]):
-                            # print('BINDEX')
-                            testResult = camResult[int(resultFormat[0]) + int(bIndex * 4)] == 0
-                            
+                            tmpResult = camResult[int(resultFormat[0]) + int(bIndex * 4)] == 0
+                            detailedResults.append(tmpResult)
+
+                            if testResultReadOnly == False:
+                                testResult = tmpResult
+
                             if testResult == False:
-                                break
+                                testResultReadOnly = True
                             bIndex = bIndex + 1
                 except Exception:
                     pass
 
-                self.__raiseStepResult(testResult, str(activeStep['id']))
+                self.__raiseStepResult(testResult, str(activeStep['id']), detailedResults)
                 
                 sleep(1) # wait for capture image store to ftp
-                # sleep(7)  
+                # sleep(3)  
 
                 if self._stepStatus == False:
                     self.stopTest()

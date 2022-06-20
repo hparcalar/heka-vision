@@ -333,6 +333,10 @@ Item{
         selectionIsValid = tmpIsValid;
         if (selectionIsValid == false){
             btnStart.enabled = false;
+            backend.stopListenerForStartButton();
+        }
+        else{
+            backend.startListenStartButton();
         }
     }
 
@@ -468,6 +472,8 @@ Item{
                 errorDialog.text = data;
                 errorDialog.visible = true;
             }
+
+            checkSelectionsAreValid();
         }
 
         function onGetStepResult(data){
@@ -479,6 +485,7 @@ Item{
                 if (foundStep){
                     foundStep.liveStatus = true;
                     foundStep.liveResult = stepRes.Result;
+                    foundStep.detailResult = stepRes.Details;
 
                     // save fault step result before reset
                     // if (stepRes.Result == false){
@@ -514,6 +521,7 @@ Item{
             btnStart.enabled = false;
             robotStartPosArrived = false;
             testRunning = false;
+            backend.startListenStartButton();
         }
 
         function onTestResultSaved(data){
@@ -597,6 +605,10 @@ Item{
             if (holdStatus != null){
                 robotHoldStatus = holdStatus;
             }
+        }
+
+        function onGetStartButtonPressed(){
+            testReset();
         }
     }
 

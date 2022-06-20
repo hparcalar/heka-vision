@@ -21,6 +21,7 @@ Item{
     property bool calendarEndVisible: false
 
     property var settingsModel: new Object({ id:0 })
+    property var reportDefectModel: new Object({ data: [] })
 
     // ON LOAD EVENT
     Component.onCompleted: function(){
@@ -212,6 +213,18 @@ Item{
                 }
             }
         }
+
+        function onGetRegionDetailResults(data){
+            const reportData = JSON.parse(data);
+            if (reportData){
+                reportDefectModel.data = reportData.Data;
+            }
+            else{
+                reportDefectModel.data = [];
+            }
+
+            regionDetailMap.requestPaint();
+        }
     }
 
     // FORM COMPONENTS
@@ -369,8 +382,10 @@ Item{
                             txtReportEndDate.text = dtNow.getDate().toString().padStart(2,'0') + '.' + (dtNow.getMonth() + 1).toString().padStart(2,'0') + dtNow.getFullYear().toString();
                             
                             backend.requestReportStats(txtReportStartDate.text, txtReportEndDate.text);
+                            backend.requestRegionResults(2, txtReportStartDate.text, txtReportEndDate.text);
 
                             tabContent.replace(tabContent.currentItem, reportTab);
+                            regionDetailMap.requestPaint();
                         }
                     }
                 }
@@ -1656,6 +1671,7 @@ Item{
                                 calendarStartVisible = false;
                                 txtReportStartDate.text = date.getDate().toString().padStart(2,'0') + '.' + (date.getMonth() + 1).toString().padStart(2,'0') + date.getFullYear().toString();
                                 backend.requestReportStats(txtReportStartDate.text, txtReportEndDate.text);
+                                backend.requestRegionResults(2, txtReportStartDate.text, txtReportEndDate.text);
                             }
                             z:9999
                         }
@@ -1672,6 +1688,7 @@ Item{
                                 calendarEndVisible = false;
                                 txtReportEndDate.text = date.getDate().toString().padStart(2,'0') + '.' + (date.getMonth() + 1).toString().padStart(2,'0') + date.getFullYear().toString();
                                 backend.requestReportStats(txtReportStartDate.text, txtReportEndDate.text);
+                                backend.requestRegionResults(2, txtReportStartDate.text, txtReportEndDate.text);
                             }
                             z:9999
                         }
@@ -2223,21 +2240,118 @@ Item{
                                     Rectangle{
                                         Layout.preferredWidth: parent.width * 0.5 - 5
                                         Layout.fillHeight: true
-                                        color: "#888"
+                                        color: "#AAA"
 
-                                        ChartView {
-                                            id: chart
-                                            title: "Hata Bölgesi İstatistikleri"
+                                        ColumnLayout{
                                             anchors.fill: parent
-                                            legend.visible: false
-                                            antialiasing: true
+                                            spacing: 0
 
-                                            PieSeries {
-                                                id: pieSeries
-                                                onAdded: function(slices){
-                                                    slices.forEach(d => {
-                                                        d.labelVisible = true;
-                                                    });
+                                            Text {
+                                                Layout.fillWidth: true
+                                                Layout.preferredHeight: 30
+                                                horizontalAlignment: Text.AlignHCenter
+                                                color:"#333"
+                                                padding: 5
+                                                minimumPointSize: 5
+                                                font.pointSize: 14
+                                                fontSizeMode: Text.Fit
+                                                font.bold: true
+                                                text: "Üst Kapak Hata Dağılımları"
+                                            }
+
+                                            Rectangle{
+                                                Layout.fillWidth: true
+                                                Layout.preferredHeight: 120
+                                                Layout.margins: 5
+                                                color: "transparent"
+
+                                                Canvas{
+                                                    id: regionDetailMap
+                                                    anchors.fill: parent
+                                                    width: parent.width
+                                                    height: parent.height
+                                                    onPaint: function(){
+                                                        var ctx = getContext("2d");
+
+                                                        // draw section
+                                                        ctx.fillStyle = '#fefefe';
+                                                        ctx.fillRect(0, 0, width, height);
+
+                                                        // var sampleData = [
+                                                        //     { posX: 0, posY: 0, width: 40, height: 50, count: 10 }, // sol üst
+                                                        //     { posX: 0, posY: 50, width: 40, height: 50, count: 50 }, // sol alt
+                                                        //     { posX: 60, posY: 0, width:40, height:50, count:300 }, // sağ üst
+                                                        //     { posX: 60, posY: 50, width:40, height:50, count:12 }, // sağ alt
+                                                        //     { posX: 40, posY: 0, width:20, height:50, count:2 }, // orta üst
+                                                        //     { posX: 40, posY: 50, width: 20, height: 50, count:500 } // serigrafi
+                                                        // ];
+
+                                                        const totalDefectCount = reportDefectModel.data.length > 0 ?
+                                                             reportDefectModel.data.map(d => d.count).reduce((a,b) => a + b) : 0;
+                                                        const colorLevels = [ '#8834eb46', '#88ffff00', '#88FFA500', '#88ff0000' ];
+
+                                                        // draw regions by defect rate
+                                                        for(let i = 0; i < reportDefectModel.data.length; i++){
+                                                            const region = reportDefectModel.data[i];
+                                                            const regionLevel = parseInt((region.count / (totalDefectCount * 1.0) * 100) / 25);
+                                                            let regionColor = colorLevels[regionLevel];
+                                                            if (!regionColor)
+                                                                regionColor = colorLevels[0];
+
+                                                            const rectX = parseInt(width * (region.posX / 100.0));
+                                                            const rectY = parseInt(height * (region.posY / 100.0));
+                                                            const rectW = parseInt(width * (region.width / 100.0));
+                                                            const rectH = parseInt(height * (region.height / 100.0));
+
+                                                            ctx.beginPath();
+                                                            ctx.fillStyle = regionColor;
+                                                            ctx.rect(rectX, rectY, rectW, rectH);
+                                                            ctx.fill();
+                                                            ctx.strokeStyle = "#88333333";
+                                                            ctx.stroke();
+                                                            ctx.textAlign = "center";
+                                                            ctx.font = 'bold 20px monospace';
+                                                            ctx.fillStyle = "#AA333333";
+                                                            ctx.fillText(region.count.toString(), rectX + (rectW / 2), rectY + (rectH / 2) + 5);
+                                                            ctx.closePath();
+
+                                                            for(let k = 0; k < region.count; k++){
+                                                                ctx.beginPath();
+                                                                ctx.strokeStyle = "#33333333";
+                                                                let px = Math.floor(Math.random() * ((rectX + rectW)));
+                                                                let py = Math.floor(Math.random() * ((rectY + rectH)));
+
+                                                                while (px < rectX)
+                                                                    px = Math.floor(Math.random() * ((rectX + rectW)));
+
+                                                                while (py < rectY)
+                                                                    py = Math.floor(Math.random() * ((rectY + rectH)));
+
+                                                                ctx.arc(px, py, 1, 0, 2 * Math.PI);
+                                                                ctx.stroke();
+
+                                                                ctx.closePath();
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            ChartView {
+                                                id: chart
+                                                title: "Hata Bölgesi İstatistikleri"
+                                                Layout.fillWidth: true
+                                                Layout.fillHeight: true
+                                                legend.visible: false
+                                                antialiasing: true
+
+                                                PieSeries {
+                                                    id: pieSeries
+                                                    onAdded: function(slices){
+                                                        slices.forEach(d => {
+                                                            d.labelVisible = true;
+                                                        });
+                                                    }
                                                 }
                                             }
                                         }

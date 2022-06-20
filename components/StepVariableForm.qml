@@ -651,6 +651,9 @@ Popup {
                                     id: txtDescription
                                     Layout.fillHeight: true
                                     Layout.fillWidth: true
+                                    onFocusChanged: function(){
+                                            backend.requestOsk(focus);
+                                        }
                                     font.pixelSize: 9
                                     padding: 2
                                     background: Rectangle {
@@ -689,6 +692,9 @@ Popup {
                                     id: txtVariableName
                                     Layout.fillHeight: true
                                     Layout.fillWidth: true
+                                    onFocusChanged: function(){
+                                            backend.requestOsk(focus);
+                                        }
                                     font.pixelSize: 9
                                     padding: 2
                                     background: Rectangle {
@@ -736,6 +742,9 @@ Popup {
                                             Layout.fillHeight: true
                                             Layout.fillWidth: true
                                             font.pixelSize: 9
+                                            onFocusChanged: function(){
+                                            backend.requestOsk(focus);
+                                        }
                                             padding: 2
                                             background: Rectangle {
                                                 radius: 5

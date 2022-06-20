@@ -12,7 +12,7 @@ def create_tables():
     with db:
         db.create_tables([Product, Employee, Shift, 
             ProductSection, ProductCamRecipe, ProductTestStep, 
-            TestResult, TestResultImage,LiveResult, LiveProduction, ComConfig, StepVariable])
+            TestResult, TestResultImage,LiveResult, LiveProduction, ComConfig, StepVariable, TestResultStepRegion, ProductSectionRegion])
 
 # PRODUCT CRUD
 def getProductList():
@@ -323,7 +323,117 @@ def deleteVariable(variableId: int):
     return result
 
 
-# EMPLOYEE CRUD
+# SECTION REGION CRUD
+def getSectionRegionList(sectionId: int):
+    data = []
+    try:
+        rawData = ProductSectionRegion.select().where(ProductSectionRegion.section == sectionId).dicts()
+        data = list(rawData)
+    except:
+        pass
+    return data
+
+
+def saveSectionRegions(sectionId: int, regionList):
+    result = { 'Result': False, 'ErrorMessage': '', 'RecordId': 0 }
+    try:
+        for d in regionList:
+            dbVar:ProductSectionRegion = None
+            try:
+                dbVar = ProductSectionRegion.get(ProductSectionRegion.id == d['id'])
+            except:
+                pass
+
+            sameVarExists = True
+            try:
+                dbOther = ProductSectionRegion.get((ProductSectionRegion.id != d['id']) & (ProductSectionRegion.regionName == d['regionName']))
+                if not dbOther:
+                    sameVarExists = False
+            except:
+                sameVarExists = False
+
+            if sameVarExists == True:
+                continue
+
+            if not dbVar:
+                dbVar = ProductSectionRegion()
+
+            dbVar.regionName = d['regionName']
+            dbVar.byteIndex = d['byteIndex']
+            dbVar.posX = d['posX']
+            dbVar.posY = d['posY']
+            dbVar.width = d['width']
+            dbVar.height = d['height']
+            dbVar.section = ProductSection.get(ProductSection.id == sectionId)
+            dbVar.save()
+
+        result['Result'] = True
+    except Exception as e:
+        print(e)
+        result['Result'] = False
+        result['ErrorMessage'] = str(e)
+
+    return result
+
+
+def deleteSectionRegion(regionId: int):
+    result = { 'Result': False, 'ErrorMessage': '', 'RecordId': 0 }
+    try:
+        dbVar:ProductSectionRegion = ProductSectionRegion.get(ProductSectionRegion.id == regionId)
+
+        if dbVar:
+            dbVar.delete_instance()
+
+        result['Result'] = True
+    except Exception as e:
+        result['Result'] = False
+        result['ErrorMessage'] = str(e)
+    return result
+
+
+def getSectionRegionResults(sectionId: int, dateStrStart: str, dateStrEnd: str):
+    result = None
+    try:
+        dtStartParts = dateStrStart.split('.')
+        dtEndParts = dateStrEnd.split('.')
+
+        dtStart = dtStartParts[2] + '-' + dtStartParts[1] + '-' + dtStartParts[0]
+        dtEnd = dtEndParts[2] + '-' + dtEndParts[1] + '-' + dtEndParts[0]
+        tmpDate:datetime = (datetime.strptime(dtEnd, '%Y-%m-%d') + timedelta(days=1))
+        dtEnd = tmpDate.strftime('%Y-%m-%d')
+
+        result = {}
+
+        # section based region defect data
+        regionData = list(TestResultStepRegion.select(ProductSectionRegion.id, ProductSectionRegion.posX, ProductSectionRegion.posY,\
+                ProductSectionRegion.width, ProductSectionRegion.height, fn.COUNT().alias('count'))\
+            .join(ProductSectionRegion)\
+            .switch(TestResultStepRegion)\
+            .join(TestResultImage)\
+            .join(TestResult)\
+            .where((TestResult.testDate >= dtStart) & (TestResult.testDate < dtEnd) & (TestResultStepRegion.isOk == False) &\
+                (TestResultStepRegion.productSectionRegion > 0) & (ProductSectionRegion.section == sectionId))\
+                .group_by(ProductSectionRegion).dicts())
+
+        regionsOfData = list(map(lambda x: x['id'], regionData))
+
+        try:
+            otherRegions = list(ProductSectionRegion.select(ProductSectionRegion.id, ProductSectionRegion.posX, ProductSectionRegion.posY,\
+                ProductSectionRegion.width, ProductSectionRegion.height).where((ProductSectionRegion.section == sectionId) & ((ProductSectionRegion.id << regionsOfData) == False)).dicts())
+            for oRegion in otherRegions:
+                oRegion['count'] = 0
+                regionData.append(oRegion)
+        except:
+            pass
+
+        result['Data'] = regionData
+    except Exception as e:
+        print(e)
+        pass
+
+    return result
+
+# region EMPLOYEE CRUD
 def getEmployeeList():
     data = []
     try:
@@ -404,9 +514,9 @@ def deleteEmployee(employeeId):
         result['ErrorMessage'] = str(e)
 
     return result
+# endregion
 
-
-# SHIFT CRUD
+# region SHIFT CRUD
 def getShiftList():
     data = []
     try:
@@ -506,7 +616,7 @@ def deleteShift(shiftId):
         result['ErrorMessage'] = str(e)
 
     return result
-
+# endregion
 
 # TEST RESULTS CRUD
 def saveTestResult(model, printAfterSave = True):
@@ -551,6 +661,24 @@ def saveTestResult(model, printAfterSave = True):
                 stepObj.step = ProductTestStep.get(ProductTestStep.id == st['id'])
                 stepObj.stepResult = st['liveResult']
                 stepObj.save()
+
+                # save section region results of current step
+                if st['detailResult']:
+                    byteIndex = 0
+                    for dRes in st['detailResult']:
+                        dbRegionResult = TestResultStepRegion()
+                        dbRegionResult.byteIndex = byteIndex
+                        dbRegionResult.isOk = dRes
+                        dbRegionResult.testResultImage = stepObj
+                        try:
+                            dbRegionResult.productSectionRegion = ProductSectionRegion.get((ProductSectionRegion.section == st['sectionId'])\
+                                & ((ProductSectionRegion.byteIndex) < 10 & (ProductSectionRegion.byteIndex == byteIndex))\
+                                    | ((ProductSectionRegion.byteIndex > 10) & (ProductSectionRegion.byteIndex == (byteIndex / 10)) | (ProductSectionRegion.byteIndex == (byteIndex % 10)) )\
+                                )
+                        except:
+                            pass
+                        dbRegionResult.save()
+                        byteIndex = byteIndex + 1
                 
 
         result['Result'] = True
@@ -621,6 +749,7 @@ def getReportStats(dateStrStart: str, dateStrEnd: str):
             sh['okCount'] = TestResult.select().where((TestResult.testDate >= dtStart) & (TestResult.testDate < dtEnd) & (TestResult.isOk == True) & (TestResult.shift == sh['id'])).count()
             sh['nokCount'] = TestResult.select().where((TestResult.testDate >= dtStart) & (TestResult.testDate < dtEnd) & (TestResult.isOk == False) & (TestResult.shift == sh['id'])).count()
 
+
         # employee based table
         employeeData = list(TestResult.select(Employee.id, Employee.employeeName, fn.COUNT(TestResult.id).alias('count'))\
             .join(Employee).where((TestResult.testDate >= dtStart) & (TestResult.testDate <= dtEnd)).group_by(Employee).dicts())
@@ -628,9 +757,29 @@ def getReportStats(dateStrStart: str, dateStrEnd: str):
             emp['okCount'] = TestResult.select().where((TestResult.testDate >= dtStart) & (TestResult.testDate < dtEnd) & (TestResult.isOk == True) & (TestResult.employee == emp['id'])).count()
             emp['nokCount'] = TestResult.select().where((TestResult.testDate >= dtStart) & (TestResult.testDate < dtEnd) & (TestResult.isOk == False) & (TestResult.employee == emp['id'])).count()
 
+
         # steps based pie data
-        stepsData = list(TestResultImage.select(ProductTestStep.testName, fn.COUNT(TestResultImage.id).alias('count'))\
-            .join(ProductTestStep).join(TestResult).where((TestResult.testDate >= dtStart) & (TestResult.testDate < dtEnd) & (TestResult.isOk == False)).group_by(ProductTestStep).dicts())
+        stepsData = list(TestResultImage.select(ProductTestStep.section, ProductTestStep.testName, fn.COUNT(TestResultImage.id).alias('count'))\
+            .join(ProductTestStep).switch(TestResultImage).join(TestResult).where((TestResult.testDate >= dtStart) &\
+                 (TestResult.testDate < dtEnd) & (TestResultImage.stepResult == False)).group_by(ProductTestStep).dicts())
+
+
+        # split first step into two sub parts
+        abstractPlaceCount = TestResultStepRegion.select().join(TestResultImage).join(TestResult).switch(TestResultImage).join(ProductTestStep)\
+            .where((ProductTestStep.section == 2) &\
+             ((TestResultStepRegion.byteIndex == (73 / 10)) | (TestResultStepRegion.byteIndex == (73 % 10))) & (TestResult.testDate >= dtStart) & (TestResult.testDate < dtEnd)\
+                & (TestResultStepRegion.isOk == False)).count()
+        for st in stepsData:
+            if st['section'] == 2:
+                st['count'] = st['count'] - abstractPlaceCount
+                st['testName'] = 'Üst Kapak'
+                break
+
+        stepsData.append({
+            'section': 0,
+            'testName': 'Serigrafi',
+            'count': abstractPlaceCount
+        })
 
         result = {}
         result['ShiftData'] = shiftData
@@ -745,6 +894,17 @@ class ProductSection(BaseModel):
     productCamRecipe = ForeignKeyField(ProductCamRecipe, backref='sections', null=True)
 
 
+class ProductSectionRegion(BaseModel):
+    id = AutoField()
+    regionName = CharField(null=True)
+    byteIndex = IntegerField(null=True)
+    posX = IntegerField(null=True)
+    posY = IntegerField(null=True)
+    width = IntegerField(null=True)
+    height = IntegerField(null=True)
+    section = ForeignKeyField(ProductSection, null=True)
+
+
 class ProductTestStep(BaseModel):
     id = AutoField()
     testName = CharField(null=False)
@@ -774,6 +934,14 @@ class TestResultImage(BaseModel):
     step = ForeignKeyField(ProductTestStep, backref='resultImages', null=True)
     section = ForeignKeyField(ProductSection, backref='resultImages', null=True)
     testResult = ForeignKeyField(TestResult, backref='resultImages', null=True)
+
+
+class TestResultStepRegion(BaseModel):
+    id = AutoField()
+    byteIndex = IntegerField(null=True)
+    isOk = BooleanField(null=True)
+    testResultImage = ForeignKeyField(TestResultImage, null=True)
+    productSectionRegion = ForeignKeyField(ProductSectionRegion, null=True)
 
 
 class LiveResult(BaseModel):
@@ -811,4 +979,5 @@ class StepVariable(BaseModel):
     variableName = CharField(null=True)
     description = CharField(null=True)
     variableValue = IntegerField(null=True)
+
 

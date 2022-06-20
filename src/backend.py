@@ -30,6 +30,9 @@ class BackendManager(QObject):
         self.lastRobotHoldStatus = False
         self.changingRobotHoldStatus = False
 
+        self.runStartButtonListener = False
+        self.startButtonChecker = None
+
 
     def initDb(self):
         create_tables()
@@ -84,20 +87,31 @@ class BackendManager(QObject):
     getCaptureImage = Signal(str)
     getRobotHoldChanged= Signal(bool)
     getReportStats = Signal(str)
+    getRegionDetailResults = Signal(str)
 
     getStepVariables = Signal(str)
     saveStepVariableFinished = Signal(str)
     deleteStepVariableFinished = Signal(str)
+
+    getSectionRegions = Signal(str)
+    saveSectionRegionFinished = Signal(str)
+    deleteSectionRegionFinished = Signal(str)
+
+    oskRequested = Signal()
+    oskClosed = Signal()
+
+    getStartButtonPressed = Signal()
     # endregion
     
     # region THR FUNCTIONS
     def raiseStepError(self, msg):
         self.testStepError.emit(msg)
     
-    def raiseStepResult(self, result, msg):
+    def raiseStepResult(self, result, msg, detailedResult):
         msgObj = {
             'Result': result,
             'Message': msg,
+            'Details': detailedResult,
         }
         self.getStepResult.emit(json.dumps(msgObj))
     
@@ -139,6 +153,10 @@ class BackendManager(QObject):
             if self.robotHoldChecker:
                 self.runRobotHoldChecker = False
                 self.robotHoldChecker.stop()
+
+            if self.startButtonChecker:
+                self.runStartButtonListener = False
+                self.startButtonChecker.stop()
         except:
             pass
 
@@ -182,9 +200,38 @@ class BackendManager(QObject):
 
             sleep(1)
     
+    def __listenForStartButton(self):
+        while self.runStartButtonListener:
+            try:
+                if self.testManager._isTestRunning == True:
+                    self.runStartButtonListener = False
+                    break
+
+                startState = self.testManager.readStartButton()
+                if startState == True:
+                    self.runStartButtonListener = False
+                    self.getStartButtonPressed.emit()
+            except:
+                pass
+            sleep(0.1)
+
     # endregion
 
     # region COMM SLOTS
+    @Slot(bool)
+    def requestOsk(self, oskStatus):
+        if oskStatus == True:
+            tmpThr = HekaThread(target=self.__runEnableOsk)
+            tmpThr.start()
+        else:
+            self.oskClosed.emit()
+
+    
+    def __runEnableOsk(self):
+        sleep(0.2)
+        self.oskRequested.emit()
+        
+
     @Slot()
     def startCommCheck(self):
         self.runCommChecker = True
@@ -196,6 +243,21 @@ class BackendManager(QObject):
         if not self.robotHoldChecker:
             self.robotHoldChecker = HekaThread(target=self.__listenForRobotHold)
             self.robotHoldChecker.start()
+
+
+    @Slot()
+    def startListenStartButton(self):
+        self.runStartButtonListener = True
+        if not self.startButtonChecker:
+            self.startButtonChecker = HekaThread(target=self.__listenForStartButton)
+            self.startButtonChecker.start()
+
+
+    @Slot()
+    def stopListenerForStartButton(self):
+        self.runStartButtonListener = False
+        if self.startButtonChecker:
+            self.startButtonChecker = None
 
 
     @Slot()
@@ -215,6 +277,9 @@ class BackendManager(QObject):
 
     @Slot(int)
     def resetTest(self, productId):
+        self.stopListenerForStartButton()
+        sleep(0.1)
+
         localWork = HekaThread(target=(lambda: self.__resetTest(productId)))
         localWork.start()
 
@@ -354,6 +419,13 @@ class BackendManager(QObject):
         self.getState.emit(json.dumps(sampleData))
 
 
+    @Slot(int, str, str)
+    def requestRegionResults(self, sectionId, startDate, endDate):
+        data = getSectionRegionResults(sectionId, startDate, endDate)
+        if data:
+            self.getRegionDetailResults.emit(json.dumps(data))
+
+
     @Slot(int, int)
     def requestLiveStatus(self, productId, shiftId):
         data = getLiveStats(productId if productId > 0 else None, shiftId if shiftId > 0 else None)
@@ -396,6 +468,28 @@ class BackendManager(QObject):
         if data:
             self.deleteStepVariableFinished.emit(json.loads(data))
     # endregion
+
+
+     # region SECTION REGION SLOTS
+    @Slot(int)
+    def requestSectionRegions(self, sectionId: int):
+        data = getSectionRegionList(sectionId)
+        if data:
+            self.getSectionRegions.emit(json.dumps(data))
+
+    @Slot(int, str)
+    def saveSectionRegions(self, sectionId: int, data: str):
+        data = saveSectionRegions(sectionId, json.loads(data))
+        if data:
+            self.saveSectionRegionFinished.emit(json.dumps(data))
+
+    @Slot(int)
+    def deleteSectionRegion(self, regionId: int):
+        data = deleteVariable(regionId)
+        if data:
+            self.deleteSectionRegionFinished.emit(json.loads(data))
+    # endregion
+
 
 
     # PRODUCT SLOTS

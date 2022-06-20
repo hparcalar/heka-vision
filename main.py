@@ -11,6 +11,7 @@ import PySide2.QtMultimedia
 from src.backend import BackendManager
 
 if __name__ == "__main__":
+    os.environ["QT_IM_MODULE"] = "qtvirtualkeyboard"
     app = QApplication(sys.argv)
     engine = QQmlApplicationEngine()
 
