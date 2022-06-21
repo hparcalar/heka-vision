@@ -825,6 +825,7 @@ def saveConfig(model):
         dbObj.valfPrm = model['valfPrm']
         dbObj.isFullPrm = model['isFullPrm']
         dbObj.testWithVacuum = model['testWithVacuum']
+        dbObj.testWithCloseHatch = model['testWithCloseHatch']
 
         dbObj.save()
         result['Result'] = True
@@ -971,6 +972,7 @@ class ComConfig(BaseModel):
     rbFromSafetyHome = CharField(null=True)
     rbToMasterJob = CharField(null=True)
     testWithVacuum = BooleanField(null=True)
+    testWithCloseHatch = BooleanField(null=True)
 
 
 class StepVariable(BaseModel):

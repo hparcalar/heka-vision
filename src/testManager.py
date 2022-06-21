@@ -2,6 +2,7 @@ from src.cvx400 import *
 from src.gp7 import *
 from src.hkThread import HekaThread
 from datetime import datetime
+from src.pointDistanceValidator import validateDistances
 
 
 class TestManager:
@@ -17,6 +18,7 @@ class TestManager:
         self._stepStatus = False
         self._isTestRunning = False
         self._testWithVacuum = True
+        self._testWithCloseHatch = True
 
         self._nextStepIsArrivedHome = False
         self._nextStepArrivingIsWaiting = False
@@ -361,6 +363,10 @@ class TestManager:
         self._testWithVacuum = enabled
 
 
+    def setTestWithCloseHatch(self, enabled: bool):
+        self._testWithCloseHatch = enabled
+
+
     def stopTest(self):
         self._stepStatus = False
         self._isTestRunning = False
@@ -435,7 +441,8 @@ class TestManager:
             sleep(0.05)
 
             # start close hatch control
-            # self.closeHatch()
+            if self._testWithCloseHatch == True:
+                self.closeHatch()
 
             # sleep(0.1) disabled below
             # while self._hatchIsClosed == False:
@@ -718,13 +725,17 @@ class TestManager:
                             if testResult == False:
                                 testResultReadOnly = True
                             bIndex = bIndex + 1
+
+                        # check point distances for the first step
+                        if self._activeStepIndex == 0 and testResult == True:
+                            testResult = validateDistances(camResult, 152, 15)
                 except Exception:
                     pass
 
                 self.__raiseStepResult(testResult, str(activeStep['id']), detailedResults)
                 
-                sleep(1) # wait for capture image store to ftp
-                # sleep(3)  
+                sleep(1.5) # wait for capture image store to ftp
+                # sleep(3)
 
                 if self._stepStatus == False:
                     self.stopTest()

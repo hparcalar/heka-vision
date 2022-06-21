@@ -48,16 +48,27 @@ class PrintManager:
             dateStr = datetime.now().strftime('%d.%m.%Y %H:%M')
 
             # write the data
+            # new label 3,5 x 1,5 cm
             self.__ep.write(chr(0x02) + 'f320\r')
             self.__ep.write(chr(0x02) + 'L\r')
-            self.__ep.write('101100000600015'+ str(data['employeeName']) +'\r')
-            # self.__ep.write('121100000500125'+ ('OK' if data['result'] == True else 'NOK') +'\r')
-            self.__ep.write('101100000500015'+ dateStr +'\r')
-            self.__ep.write('101100000400015'+ str(data['shiftCode']) +' VARDIYASI\r')
-            # self.__ep.write('1E3101700050015'+ str(data['barcode']) +'\r')
-            self.__ep.write('1W1c44000000500702000000000'+ str(data['barcode']) +'\r')
+            self.__ep.write('101100000450015'+ str(data['employeeName']) +'\r')
+            # ep.write('121100000350125'+ ('OK' if data['result'] == True else 'NOK') +'\r')
+            self.__ep.write('101100000350015'+ dateStr +'\r')
+            self.__ep.write('101100000250015'+ str(data['shiftCode']) +' VARDIYASI\r')
+            self.__ep.write('1W1c33000000500902000000000'+ str(data['barcode']) +'\r')
             self.__ep.write('E\r')
             self.__ep.write(chr(0x02) + ' F\r')
+
+            # old label 4 x 2 cm
+            # self.__ep.write(chr(0x02) + 'f320\r')
+            # self.__ep.write(chr(0x02) + 'L\r')
+            # self.__ep.write('101100000600015'+ str(data['employeeName']) +'\r')
+            # # self.__ep.write('121100000500125'+ ('OK' if data['result'] == True else 'NOK') +'\r')
+            # self.__ep.write('101100000500015'+ dateStr +'\r')
+            # self.__ep.write('101100000400015'+ str(data['shiftCode']) +' VARDIYASI\r')
+            # self.__ep.write('1W1c44000000500702000000000'+ str(data['barcode']) +'\r')
+            # self.__ep.write('E\r')
+            # self.__ep.write(chr(0x02) + ' F\r')
 
             result = True
         except Exception as e:

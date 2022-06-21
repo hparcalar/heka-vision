@@ -98,11 +98,21 @@ class Cvx400:
 
             for vr in varList:
                 try:
+                    if vr['variableName'] >= '$G0013':
+                        if int(vr['variableValue']) <= 70 and int(vr['variableValue']) > 50:
+                            vr['variableValue'] = 36
+                        elif int(vr['variableValue']) <= 50 and int(vr['variableValue']) > 30:
+                            vr['variableValue'] = 12
+                        elif int(vr['variableValue']) <= 30 and int(vr['variableValue']) > 10:
+                            vr['variableValue'] = 8
+                        else:
+                            vr['variableValue'] = 4
+                            
                     sck.send(bytearray('MW,'+ vr['variableName'] +','+ str(vr['variableValue']) +'\r', 'ascii'))
                     vrChangeResult = sck.recv(1024)
                 except:
                     pass
-
+                
             sck.close()
             pass
         except:
@@ -172,7 +182,7 @@ class Cvx400:
 
         fRes = []
         try:
-            fRes, = self._proxy.read([('@0x04/0x64/0x03', 'SINT')]) # cvx 064, xgx 065
+            fRes, = self._proxy.read([('@0x04/0x64/0x03', 'USINT')]) # cvx 064, xgx 065
         except Exception as e:
             pass
             # print(e)

@@ -9,10 +9,10 @@ import QtGraphicalEffects 1.0
 Popup {
     id: popupContainer
     
-    property int stepId: 0
+    property int sectionId: 0
     property int recordId: 0
-    property var modelObject: new Object({ variables: [] })
-    property var variableModel: new Object({ id:0 })
+    property var modelObject: new Object({ regions: [] })
+    property var regionModel: new Object({ id:0 })
     property string lastCode: ""
 
     modal: true
@@ -51,118 +51,93 @@ Popup {
     }
 
     function bindModel(){
-        if (stepId > 0){
-            backend.requestStepVariables(stepId);
+        if (sectionId > 0){
+            backend.requestSectionRegions(sectionId);
         }
     }
 
-    function showVariable(id, variableName){
+    function showRegion(id, regionName){
         recordId = id;
-        variableModel = modelObject.variables.find(d => d.id == recordId || d.variableName == variableName);
-        if (variableModel && variableModel != null){
-            txtVariableName.text = variableModel.variableName;
-            txtVariableValue.text = (variableModel.variableValue ?? 0).toString();
-            txtDescription.text = variableModel.description;
+        regionModel = modelObject.regions.find(d => d.id == recordId || d.regionName == regionName);
+        if (regionModel && regionModel != null){
+            txtRegionName.text = regionModel.regionName;
+            txtByteIndex.text = (regionModel.byteIndex ?? 0).toString();
+            txtPosX.text = (regionModel.posX ?? 0).toString();
+            txtPosY.text = (regionModel.posY ?? 0).toString();
+            txtWidth.text = (regionModel.width ?? 0).toString();
+            txtHeight.text = (regionModel.height ?? 0).toString();
         }
     }
 
-    function newVariable(){
-        variableModel = { id:0 };
-        txtVariableName.text = '';
-        txtVariableValue.text = '';
-        txtDescription.text = '';
-        txtDescription.focus = true;
+    function newRegion(){
+        regionModel = { id:0 };
+
+        txtRegionName.text = '';
+        txtByteIndex.text = '';
+        txtPosX.text = '';
+        txtPosY.text = '';
+        txtWidth.text = '';
+        txtHeight.text = '';
+        txtRegionName.focus = true;
     }
 
     function saveModel(){
-        if (variableModel){
+        if (regionModel){
             waitingIcon.visible = true;
 
-            variableModel.variableName = txtVariableName.text;
-            variableModel.variableValue = txtVariableValue.text;
-            variableModel.description = txtDescription.text;
+            regionModel.regionName = txtRegionName.text;
+            regionModel.byteIndex = parseInt(txtByteIndex.text);
+            regionModel.posX = parseInt(txtPosX.text);
+            regionModel.posY = parseInt(txtPosY.text);
+            regionModel.width = parseInt(txtWidth.text);
+            regionModel.height = parseInt(txtHeight.text);
 
-            if (!modelObject.variables.includes(variableModel))
-                modelObject.variables.push(variableModel);
+            if (!modelObject.regions.includes(regionModel))
+                modelObject.regions.push(regionModel);
 
-            lastCode = variableModel.variableName;
-
-            const data = modelObject.variables;
-            for (let i = 0; i < data.length; i++) {
-                const row = data[i];
-                if (row.variableName >= '$G0013'){
-                    row.variableValue = parseInt(parseFloat(row.variableValue) * 100).toString();
-                }
-            }
+            lastCode = regionModel.regionName;
 
             let processFlag = false;
             delay(200, function(){
                 if (processFlag == false){
-                    backend.saveStepVariables(stepId, JSON.stringify(modelObject.variables));
+                    backend.saveSectionRegions(sectionId, JSON.stringify(modelObject.regions));
                     processFlag = true;
                 }
             });
         }
     }
 
-    function deleteModel(variableId){
+    function deleteModel(regionId){
         waitingIcon.visible = true;
 
         let processFlag = false;
         delay(200, function(){
             if (processFlag == false){
-                backend.deleteVariable(variableId);
+                backend.deleteSectionRegion(regionId);
                 processFlag = true;
             }
         });
-    }
-
-    function incValue(){
-        try {
-            let currentValue = txtVariableValue.text.length > 0 ? parseInt(txtVariableValue.text) : 0;
-            currentValue++;
-            txtVariableValue.text = currentValue.toString();
-        } catch (error) {
-            
-        }
-    }
-
-    function decValue(){
-        try {
-            let currentValue = txtVariableValue.text.length > 0 ? parseInt(txtVariableValue.text) : 0;
-            currentValue--;
-            txtVariableValue.text = currentValue.toString();
-        } catch (error) {
-            
-        }
     }
 
     // BACKEND SIGNALS & SLOTS
     Connections {
         target: backend
 
-        function onGetStepVariables(variablesInfo){
-            const data = JSON.parse(variablesInfo);
+        function onGetSectionRegions(regionsInfo){
+            const data = JSON.parse(regionsInfo);
             if (data){
-                for (let i = 0; i < data.length; i++) {
-                    const row = data[i];
-                    if (row.variableName >= '$G0013'){
-                        row.variableValue = row.variableValue / 100.0;
-                    }
-                }
-
-                modelObject.variables = data;
-                rptVars.model = modelObject.variables;
+                modelObject.regions = data;
+                rptVars.model = modelObject.regions;
 
                 if (lastCode.length > 0)
-                    showVariable(0, lastCode);
+                    showRegion(0, lastCode);
 
                 lastCode = "";
             }
         }
 
-        // all step variables
-        function onSaveStepVariableFinished(saveResult){
+        // all section regions
+        function onSaveSectionRegionFinished(saveResult){
             waitingIcon.visible = false;
             var resultData = JSON.parse(saveResult);
             if (resultData){
@@ -172,8 +147,8 @@ Popup {
             }
         }
 
-        // specific variable
-        function onDeleteStepVariableFinished(saveResult){
+        // specific region
+        function onDeleteSectionRegionFinished(saveResult){
             waitingIcon.visible = false;
             var resultData = JSON.parse(saveResult);
             if (resultData){
@@ -190,7 +165,7 @@ Popup {
         icon: StandardIcon.Question
         standardButtons: StandardButton.Yes | StandardButton.No
         title: "Uyarı"
-        text: "Bu değişkeni silmek istediğinizden emin misiniz?"
+        text: "Bu alt bölgeyi silmek istediğinizden emin misiniz?"
         onYes: {
             visible = false;
             deleteModel(recordId);
@@ -227,7 +202,7 @@ Popup {
                         padding: 10
                         font.pixelSize: 24
                         font.bold: true
-                        text: "Değişken Tanımları"
+                        text: "Alt Bölge Tanımları"
                     }
 
                     RowLayout{
@@ -332,7 +307,7 @@ Popup {
             RowLayout{
                 anchors.fill: parent
 
-                // VARIABLE LIST
+                // REGION LIST
                 Rectangle{
                     Layout.preferredWidth: parent.width * 0.7
                     Layout.fillHeight: true
@@ -354,7 +329,7 @@ Popup {
                                 Button{
                                     text: "Yeni Değişken"
                                     onClicked: function(){
-                                        newVariable();
+                                        newRegion();
                                     }
                                     Layout.alignment: Qt.AlignRight
                                     id:btnNewVariable
@@ -401,7 +376,7 @@ Popup {
                                 spacing: 0
 
                                 Rectangle{
-                                    Layout.preferredWidth: parent.width * 0.2
+                                    Layout.preferredWidth: parent.width * 0.6
                                     Layout.fillHeight: true
                                     color: "transparent"
 
@@ -418,28 +393,7 @@ Popup {
                                         fontSizeMode: Text.Fit
                                         font.underline: true
                                         font.bold: true
-                                        text: "Açıklama"
-                                    }
-                                }
-
-                                Rectangle{
-                                    Layout.preferredWidth: parent.width * 0.4
-                                    Layout.fillHeight: true
-                                    color: "transparent"
-
-                                    Text {
-                                        width: parent.width
-                                        height: parent.height
-                                        horizontalAlignment: Text.AlignHCenter
-                                        verticalAlignment: Text.AlignVCenter
-                                        color:"#333"
-                                        padding: 2
-                                        minimumPointSize: 5
-                                        font.pointSize: 14
-                                        fontSizeMode: Text.Fit
-                                        font.underline: true
-                                        font.bold: true
-                                        text: "Değişken"
+                                        text: "Adı"
                                     }
                                 }
 
@@ -460,11 +414,9 @@ Popup {
                                         fontSizeMode: Text.Fit
                                         font.underline: true
                                         font.bold: true
-                                        text: "Değer"
+                                        text: "Poizsyon"
                                     }
                                 }
-
-                                
 
                                 Rectangle{
                                     Layout.preferredWidth: 100
@@ -516,14 +468,14 @@ Popup {
                                                 spacing: 0
 
                                                 LinearGradient {
-                                                    Layout.preferredWidth: parent.width * 0.2
+                                                    Layout.preferredWidth: parent.width * 0.6
                                                     Layout.fillHeight: true
                                                     start: Qt.point(0, 0)
                                                     end: Qt.point(width, 0)
                                                     gradient: Gradient {
                                                         GradientStop { position: 0.0; color: 
-                                                            ((modelData.id > 0 && modelData.id == variableModel.id) 
-                                                                || modelData.variableName == variableModel.variableName) ? "#7eb038" : "#326195" }
+                                                            ((modelData.id > 0 && modelData.id == regionModel.id) 
+                                                                || modelData.regionName == regionModel.regionName) ? "#7eb038" : "#326195" }
                                                         GradientStop { position: 1.0; color: "#efefef" }
                                                     }
 
@@ -539,26 +491,7 @@ Popup {
                                                         font.pointSize: 10
                                                         fontSizeMode: Text.Fit
                                                         font.bold: true
-                                                        text: (modelData.description ?? '')
-                                                    }
-                                                }
-
-                                                Rectangle{
-                                                    Layout.preferredWidth: parent.width * 0.4
-                                                    Layout.fillHeight: true
-                                                    color: "transparent"
-
-                                                    Text {
-                                                        width: parent.width
-                                                        height: parent.height
-                                                        horizontalAlignment: Text.AlignHCenter
-                                                        verticalAlignment: Text.AlignVCenter
-                                                        color:"#333"
-                                                        padding: 2
-                                                        minimumPointSize: 5
-                                                        font.pointSize: 10
-                                                        fontSizeMode: Text.Fit
-                                                        text: (modelData.variableName ?? '')
+                                                        text: (modelData.regionName ?? '')
                                                     }
                                                 }
 
@@ -577,7 +510,10 @@ Popup {
                                                         minimumPointSize: 5
                                                         font.pointSize: 10
                                                         fontSizeMode: Text.Fit
-                                                        text: (modelData.variableValue ?? 0)
+                                                        text: (modelData.posX ?? 0).toString() + ',' 
+                                                            + (modelData.posY ?? 0).toString() + ','
+                                                            + (modelData.width ?? 0).toString() + ','
+                                                            + (modelData.height ?? 0).toString()
                                                     }
                                                 }
 
@@ -587,7 +523,7 @@ Popup {
                                                     color: "transparent"
 
                                                     Button{
-                                                        onClicked: showVariable(modelData.id, modelData.variableName)
+                                                        onClicked: showRegion(modelData.id, modelData.regionName)
                                                         width: 30
                                                         height: parent.height
                                                         anchors.top: parent.top
@@ -623,7 +559,7 @@ Popup {
                     }
                 }
 
-                // VARIABLE FORM
+                // REGION FORM
                 Rectangle{
                     Layout.fillWidth: true
                     Layout.fillHeight: true
@@ -640,7 +576,7 @@ Popup {
                         anchors.topMargin: 10
                         spacing: 0
 
-                        // DESCRIPTION FIELD
+                        // REGION NAME FIELD
                         Rectangle{
                             Layout.preferredHeight: 40
                             Layout.fillWidth: true
@@ -663,7 +599,7 @@ Popup {
                                 }
 
                                 TextField {
-                                    id: txtDescription
+                                    id: txtRegionName
                                     Layout.fillHeight: true
                                     Layout.fillWidth: true
                                     onFocusChanged: function(){
@@ -681,7 +617,7 @@ Popup {
                             }
                         }
 
-                        // VARIABLE NAME FIELD
+                        // BYTE INDEX FIELD
                         Rectangle{
                             Layout.preferredHeight: 40
                             Layout.fillWidth: true
@@ -697,14 +633,14 @@ Popup {
                                     Layout.preferredHeight: 12
                                     Layout.alignment: Qt.AlignTop
                                     horizontalAlignment: Text.AlignLeft
-                                    text:'Değişken'
+                                    text:'Sonuç Sırası'
                                     minimumPointSize: 5
                                     font.pointSize: 14
                                     fontSizeMode: Text.Fit
                                 }
 
                                 TextField {
-                                    id: txtVariableName
+                                    id: txtByteIndex
                                     Layout.fillHeight: true
                                     Layout.fillWidth: true
                                     onFocusChanged: function(){
@@ -722,7 +658,7 @@ Popup {
                             }
                         }
 
-                        // VARIABLE VALUE FIELD
+                        // POSX FIELD
                         Rectangle{
                             Layout.preferredHeight: 40
                             Layout.fillWidth: true
@@ -738,106 +674,149 @@ Popup {
                                     Layout.preferredHeight: 12
                                     Layout.alignment: Qt.AlignTop
                                     horizontalAlignment: Text.AlignLeft
-                                    text:'Değer'
+                                    text:'X'
                                     minimumPointSize: 5
                                     font.pointSize: 14
                                     fontSizeMode: Text.Fit
                                 }
 
-                                Rectangle{
+                                TextField {
+                                    id: txtPosX
                                     Layout.fillHeight: true
                                     Layout.fillWidth: true
-                                    color: "transparent"
-
-                                    RowLayout{
-                                        anchors.fill: parent
-
-                                        TextField {
-                                            id: txtVariableValue
-                                            Layout.fillHeight: true
-                                            Layout.fillWidth: true
-                                            font.pixelSize: 9
-                                            onFocusChanged: function(){
+                                    onFocusChanged: function(){
                                             backend.requestOsk(focus);
                                         }
-                                            padding: 2
-                                            background: Rectangle {
-                                                radius: 5
-                                                border.color: parent.focus ? "#326195" : "#888"
-                                                border.width: 1
-                                                color: parent.focus ? "#efefef" : "#ffffff"
-                                            }
+                                    font.pixelSize: 9
+                                    padding: 2
+                                    background: Rectangle {
+                                        radius: 5
+                                        border.color: parent.focus ? "#326195" : "#888"
+                                        border.width: 1
+                                        color: parent.focus ? "#efefef" : "#ffffff"
+                                    }
+                                }
+                            }
+                        }
 
-                                            // validator: IntValidator {bottom: -500; top: 500}
+                        // POSY FIELD
+                        Rectangle{
+                            Layout.preferredHeight: 40
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignTop
+                            Layout.margins: 0
+                            color: "transparent"
+
+                            ColumnLayout{
+                                anchors.fill: parent
+
+                                Label{
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 12
+                                    Layout.alignment: Qt.AlignTop
+                                    horizontalAlignment: Text.AlignLeft
+                                    text:'Y'
+                                    minimumPointSize: 5
+                                    font.pointSize: 14
+                                    fontSizeMode: Text.Fit
+                                }
+
+                                TextField {
+                                    id: txtPosY
+                                    Layout.fillHeight: true
+                                    Layout.fillWidth: true
+                                    onFocusChanged: function(){
+                                            backend.requestOsk(focus);
                                         }
+                                    font.pixelSize: 9
+                                    padding: 2
+                                    background: Rectangle {
+                                        radius: 5
+                                        border.color: parent.focus ? "#326195" : "#888"
+                                        border.width: 1
+                                        color: parent.focus ? "#efefef" : "#ffffff"
+                                    }
+                                }
+                            }
+                        }
 
-                                        // INC & DEC BUTTONS
-                                        Rectangle{
-                                            Layout.fillHeight: true
-                                            Layout.preferredWidth: 80
-                                            color: "transparent"
+                        // WIDTH FIELD
+                        Rectangle{
+                            Layout.preferredHeight: 40
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignTop
+                            Layout.margins: 0
+                            color: "transparent"
 
-                                            RowLayout{
-                                                anchors.fill: parent
-                                                spacing:0
+                            ColumnLayout{
+                                anchors.fill: parent
 
-                                                // INC BUTTON
-                                                Button{
-                                                    id: btnVarUp
-                                                    text: ""
-                                                    Layout.fillWidth: true
-                                                    Layout.fillHeight: true
-                                                    onClicked: incValue()
-                                                    padding: 10
-                                                    palette.buttonText: "#333"
-                                                    background: Rectangle {
-                                                        border.width: btnVarUp.activeFocus ? 2 : 1
-                                                        border.color: "#333"
-                                                        radius: 4
-                                                        gradient: Gradient {
-                                                            GradientStop { position: 0 ; color: btnVarUp.pressed ? "#AAA" : "#dedede" }
-                                                            GradientStop { position: 1 ; color: btnVarUp.pressed ? "#dedede" : "#AAA" }
-                                                        }
-                                                    }
+                                Label{
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 12
+                                    Layout.alignment: Qt.AlignTop
+                                    horizontalAlignment: Text.AlignLeft
+                                    text:'En (%)'
+                                    minimumPointSize: 5
+                                    font.pointSize: 14
+                                    fontSizeMode: Text.Fit
+                                }
 
-                                                    Image {
-                                                        anchors.centerIn: parent
-                                                        sourceSize.width: parent.width - 5
-                                                        sourceSize.height: parent.height - 5
-                                                        fillMode: Image.Stretch
-                                                        source: "../assets/increase.png"
-                                                    }
-                                                }
-
-                                                // DEC BUTTON
-                                                Button{
-                                                    id: btnVarDec
-                                                    text: ""
-                                                    Layout.fillWidth: true
-                                                    Layout.fillHeight: true
-                                                    onClicked: decValue()
-                                                    padding: 10
-                                                    palette.buttonText: "#333"
-                                                    background: Rectangle {
-                                                        border.width: btnVarDec.activeFocus ? 2 : 1
-                                                        border.color: "#333"
-                                                        radius: 4
-                                                        gradient: Gradient {
-                                                            GradientStop { position: 0 ; color: btnVarDec.pressed ? "#AAA" : "#dedede" }
-                                                            GradientStop { position: 1 ; color: btnVarDec.pressed ? "#dedede" : "#AAA" }
-                                                        }
-                                                    }
-
-                                                    Image {
-                                                        anchors.centerIn: parent
-                                                        sourceSize.width: parent.width - 5
-                                                        sourceSize.height: parent.height - 5
-                                                        fillMode: Image.Stretch
-                                                        source: "../assets/decrease.png"
-                                                    }
-                                                }
-                                            }
+                                TextField {
+                                    id: txtWidth
+                                    Layout.fillHeight: true
+                                    Layout.fillWidth: true
+                                    onFocusChanged: function(){
+                                            backend.requestOsk(focus);
                                         }
+                                    font.pixelSize: 9
+                                    padding: 2
+                                    background: Rectangle {
+                                        radius: 5
+                                        border.color: parent.focus ? "#326195" : "#888"
+                                        border.width: 1
+                                        color: parent.focus ? "#efefef" : "#ffffff"
+                                    }
+                                }
+                            }
+                        }
+
+                        // HEIGHT FIELD
+                        Rectangle{
+                            Layout.preferredHeight: 40
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignTop
+                            Layout.margins: 0
+                            color: "transparent"
+
+                            ColumnLayout{
+                                anchors.fill: parent
+
+                                Label{
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 12
+                                    Layout.alignment: Qt.AlignTop
+                                    horizontalAlignment: Text.AlignLeft
+                                    text:'Boy (%)'
+                                    minimumPointSize: 5
+                                    font.pointSize: 14
+                                    fontSizeMode: Text.Fit
+                                }
+
+                                TextField {
+                                    id: txtHeight
+                                    Layout.fillHeight: true
+                                    Layout.fillWidth: true
+                                    onFocusChanged: function(){
+                                            backend.requestOsk(focus);
+                                        }
+                                    font.pixelSize: 9
+                                    padding: 2
+                                    background: Rectangle {
+                                        radius: 5
+                                        border.color: parent.focus ? "#326195" : "#888"
+                                        border.width: 1
+                                        color: parent.focus ? "#efefef" : "#ffffff"
                                     }
                                 }
                             }
@@ -881,9 +860,9 @@ Popup {
 
                                 // SECTION DELETE BUTTON
                                 Button{
-                                    visible: variableModel.id > 0
+                                    visible: regionModel && regionModel.id > 0
                                     onClicked: function(){
-                                        deleteModel(variableModel.id);
+                                        deleteModel(regionModel.id);
                                     }
                                     Layout.fillWidth: true
                                     Layout.fillHeight: true

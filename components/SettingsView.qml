@@ -111,6 +111,7 @@ Item{
             settingsModel.rbToSafetyHome = txtStgRbToSafetyHome.text;
             settingsModel.valfPrm = txtStgValfPrm.text;
             settingsModel.testWithVacuum = chkTestWithVacuum.checked;
+            settingsModel.testWithCloseHatch = chkTestWithCloseHatch.checked;
 
             backend.saveSettings(JSON.stringify(settingsModel));
         } catch (error) {
@@ -185,6 +186,7 @@ Item{
                 txtStgRbToSafetyHome.text = (settingsModel.rbToSafetyHome ?? '');
                 txtStgValfPrm.text = (settingsModel.valfPrm ?? '');
                 chkTestWithVacuum.checked = (settingsModel.testWithVacuum ?? false);
+                chkTestWithCloseHatch.checked = (settingsModel.testWithCloseHatch ?? false);
             } catch (error) {
                 console.log(error);
             }
@@ -1591,6 +1593,36 @@ Item{
 
                                     CheckBox {
                                         id: chkTestWithVacuum
+                                        checked: false
+                                        Layout.fillHeight: true
+                                        // Layout.fillWidth: true
+                                        padding: 10
+                                    }
+                                }
+                            }
+
+                            // TEST WITH CLOSED HATCH PRM
+                            Rectangle{
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 50
+                                Layout.alignment: Qt.AlignTop
+                                Layout.margins: 2
+                                color: "transparent"
+
+                                ColumnLayout{
+                                    anchors.fill: parent
+
+                                    Label{
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: 15
+                                        Layout.alignment: Qt.AlignTop
+                                        horizontalAlignment: Text.AlignLeft
+                                        text:'Tarama Esnasında Kapağı Kapat'
+                                        font.pixelSize: 12
+                                    }
+
+                                    CheckBox {
+                                        id: chkTestWithCloseHatch
                                         checked: false
                                         Layout.fillHeight: true
                                         // Layout.fillWidth: true

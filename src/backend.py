@@ -230,7 +230,7 @@ class BackendManager(QObject):
     def __runEnableOsk(self):
         sleep(0.2)
         self.oskRequested.emit()
-        
+
 
     @Slot()
     def startCommCheck(self):
@@ -313,6 +313,7 @@ class BackendManager(QObject):
         if productData:
             stgModel = getConfig()
             self.testManager.setTestWithVacuum(stgModel['testWithVacuum'])
+            self.testManager.setTestWithCloseHatch(stgModel['testWithCloseHatch'])
 
             globalVars = getAllVariableList()
             if globalVars:
