@@ -173,7 +173,7 @@ class BackendManager(QObject):
 
                 self.getDeviceStatus.emit(json.dumps(statusResult))
             except Exception as e:
-                print(e)
+                # print(e)
                 pass
 
             sleep(5)
@@ -248,9 +248,12 @@ class BackendManager(QObject):
     @Slot()
     def startListenStartButton(self):
         self.runStartButtonListener = True
-        if not self.startButtonChecker:
-            self.startButtonChecker = HekaThread(target=self.__listenForStartButton)
+        try:
+            if not self.startButtonChecker:
+                self.startButtonChecker = HekaThread(target=self.__listenForStartButton)
             self.startButtonChecker.start()
+        except:
+            pass
 
 
     @Slot()

@@ -72,7 +72,7 @@ class PrintManager:
 
             result = True
         except Exception as e:
-            print(e)
+            # print(e)
             result = False
 
         return result

@@ -19,6 +19,7 @@ class TestManager:
         self._isTestRunning = False
         self._testWithVacuum = True
         self._testWithCloseHatch = True
+        self._immidateBreakBarrierThread = False
 
         self._nextStepIsArrivedHome = False
         self._nextStepArrivingIsWaiting = False
@@ -46,14 +47,29 @@ class TestManager:
                 try:
                     self.__stopHatchCheckThread()
                     self.openHatch()
+
+                    self._barrierThreadRun = False
+                    self._immidateBreakBarrierThread = True
+                    self.__stopBarrierThread()
+
                     self.__moveRobotToHome()
                     
-                    self._barrierThreadRun = False
                     self._isTestRunning = False
-                    self.__stopBarrierThread()
                     self._backend.raiseAllStepsFinished()
                     
                 except Exception as e:
+                    pass
+
+                # select first steps recipe after whole test is finished
+                try:
+                    firstStep = self._product['steps'][0]
+                    recipe = firstStep['camRecipe']
+                
+                    if recipe['recipeCode']:
+                        # SELECT RECIPE FROM CAMERA
+                        recipeNoData = recipe['recipeCode'].split(':')
+                        camRes = self._camera.selectProgram(recipeNoData[0], recipeNoData[1])
+                except:
                     pass
 
         except:
@@ -69,8 +85,14 @@ class TestManager:
         self._backend.raiseStartPosArrived()
 
     def __raiseStepResult(self, result, msg, detailedResult):
+        tmpThr = HekaThread(target=self.__runRaiseStepResult, args=[result, msg, detailedResult])
+        tmpThr.start()
+        
+
+    def __runRaiseStepResult(self, result, msg, detailedResult):
         if self._backend:
             self._backend.raiseStepResult(result, msg, detailedResult)
+
 
     def __createMaterials(self):
         if self._comConfig and self._updateMaterials == True:
@@ -245,7 +267,9 @@ class TestManager:
     def __loopBarrierThread(self):
         #pass
         while self._isTestRunning == True or self._barrierThreadRun == True:
-
+            if self._immidateBreakBarrierThread == True:
+                self._immidateBreakBarrierThread = False
+                break
             try:
                 self._lightBarrierOk = self.__checkLightBarrier()
                 if self._lightBarrierOk == False:
@@ -322,7 +346,7 @@ class TestManager:
         self._nextStepArrivingIsWaiting = True
         self._nextStepIsArrivedHome = False
 
-        sleep(0.2)
+        sleep(0.01)
 
         tryCount = 0
         arrivePosData = readyToStartData.split(':')
@@ -332,9 +356,9 @@ class TestManager:
                 return
 
             onPos = self.__readFromRobot(arrivePosData)
-            sleep(0.1)
+            sleep(0.01)
             tryCount = tryCount + 1
-            if tryCount > 300: # max timeout 10 sn
+            if tryCount > 3000: # max timeout 10 sn
                 self._robot.writeInteger(0,0)
                 self._robot.writeBit(3, 1)
                 if self._isTestRunning == True:
@@ -534,6 +558,11 @@ class TestManager:
         self._robot.writeExternalIo(2703, status)
 
 
+    def sleepAndCloseVacuum(self, timeout):
+        sleep(timeout)
+        self.setVacuum(0)
+
+
     def startCurrentStep(self):
         try:
             if self._isTestRunning == False:
@@ -550,7 +579,6 @@ class TestManager:
                 if not recipe['recipeCode']:
                     self.__raiseError('Reçete No Bilgisi Girilmemiş')
                     return
-
                 
                 if self._stepStatus == False:
                     return
@@ -591,9 +619,9 @@ class TestManager:
                             return
 
                         onPos = self.__readFromRobot(arrivePosData)
-                        sleep(0.1)
+                        sleep(0.01)
                         tryCount = tryCount + 1
-                        if tryCount > 300: # max timeout 10 sn
+                        if tryCount > 3000: # max timeout 10 sn
                             self._robot.writeInteger(0,0)
                             self._robot.writeBit(3, 1)
                             if self._isTestRunning == True:
@@ -603,7 +631,7 @@ class TestManager:
                     while self._nextStepIsArrivedHome == False:
                         if self._stepStatus == False:
                             return
-                        sleep(0.1)
+                        sleep(0.01)
 
                 self.__raiseStartPosArrived()
 
@@ -625,7 +653,7 @@ class TestManager:
                     return
 
                 # START VACUUM BEFORE SCANNING
-                if self._testWithVacuum == True:
+                if self._testWithVacuum == True and recipe['recipeCode'] != '1:1': # kapak aralık kontrolünde havayı açma
                     self.setVacuum(1)
 
                 # SEND ROBOT START TO SCAN
@@ -647,15 +675,19 @@ class TestManager:
                         return
 
                     onPos = self.__readFromRobot(scanEndPosData)
-                    sleep(0.1)
+                    sleep(0.01)
                     tryCount = tryCount + 1
-                    if tryCount > 300: # max timeout 10 sn
+                    if tryCount > 3000: # max timeout 10 sn
                         if self._isTestRunning == True:
                             self.__raiseError('Robot Bölge Taramasını Tamamlayamadı')
                         return
 
                 # STOP VACUUM AFTER SCANNING
-                self.setVacuum(0)
+                if (self._activeStepIndex == 3): # sol yüzeyde robottan gelen erken sinyalden dolayı hava hemen kesiliyor
+                    tmpThr = HekaThread(target=self.sleepAndCloseVacuum, args=[1])
+                    tmpThr.start()
+                else:
+                    self.setVacuum(0)
 
                 # SEND ROBOT GOTO START POSITION OF NEXT STEP
                 self._nextStepIsArrivedHome = False
@@ -693,10 +725,10 @@ class TestManager:
                         return
 
                     isOutputReady = self._camera.isOutputReady()
-                    sleep(0.1)
+                    sleep(0.01)
 
                     tryCount = tryCount + 1
-                    if tryCount > 100:
+                    if tryCount > 1000:
                         if self._isTestRunning == True:
                             self.__raiseError('Kamera Output Bilgisi Alınamadı')
                         return
@@ -734,7 +766,8 @@ class TestManager:
 
                 self.__raiseStepResult(testResult, str(activeStep['id']), detailedResults)
                 
-                sleep(1.5) # wait for capture image store to ftp
+                if self._activeStepIndex + 1 < len(self._product['steps']):
+                    sleep(1.2) # wait for capture image store to ftp
                 # sleep(3)
 
                 if self._stepStatus == False:

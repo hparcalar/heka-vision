@@ -39,6 +39,7 @@ class DirManager:
 
                                 fullPath = dir + '/' + latestTestDir + '/' + latestImage
                                 if datetime.fromtimestamp(getctime(fullPath)) > threshDate and not fullPath in histArr:
+                                    sleep(2)
                                     histArr.append(fullPath)
                                     if len(histArr) >= 10:
                                         histArr.pop(0)
@@ -86,7 +87,11 @@ class DirManager:
     def startListeners(self):
         self._isRunning = True
 
-        self._histories.clear()
+        try:
+            self._histories.clear()
+        except:
+            pass
+        
         for d in self._directories:
             lThread = HekaThread(target=self.__listenProcess, args=(d,))
             self._listeners.append(lThread)

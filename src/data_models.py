@@ -84,7 +84,7 @@ def getProduct(productId):
         data['camRecipes'] = None
         # print(data)
     except Exception as e:
-        print(e)
+        # print(e)
         pass
     return data
 
@@ -281,7 +281,7 @@ def saveStepVariables(stepId: int, varList):
 
             sameVarExists = True
             try:
-                dbOther = StepVariable.get((StepVariable.id != d['id']) & (StepVariable.variableName == d['variableName']))
+                dbOther = StepVariable.get((StepVariable.id != d['id']) & (StepVariable.step == stepId) & (StepVariable.variableName == d['variableName']))
                 if not dbOther:
                     sameVarExists = False
             except:
@@ -294,14 +294,13 @@ def saveStepVariables(stepId: int, varList):
                 dbVar = StepVariable()
 
             dbVar.variableName = d['variableName']
-            dbVar.variableValue = d['variableValue']
+            dbVar.variableValue = int(d['variableValue'])
             dbVar.description = d['description']
             dbVar.step = ProductTestStep.get(ProductTestStep.id == stepId)
             dbVar.save()
 
         result['Result'] = True
     except Exception as e:
-        print(e)
         result['Result'] = False
         result['ErrorMessage'] = str(e)
 

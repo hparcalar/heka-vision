@@ -78,9 +78,14 @@ class Cvx400:
             sck = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sck.settimeout(9.0)
             sck.connect((self._hostIp, self._hostPort))
-            sck.send(bytearray('PW,'+ str(sdCardNo) +','+ str(programNo) +'\r', 'ascii'))
+            sck.send(bytearray('PR\r', 'ascii'))
             resp = sck.recv(1024)
-            if resp.decode().find("ER,") == -1:
+            if int(resp.decode().split(',')[2]) != int(programNo):
+                sck.send(bytearray('PW,'+ str(sdCardNo) +','+ str(programNo) +'\r', 'ascii'))
+                resp = sck.recv(1024)
+                if resp.decode().find("ER,") == -1:
+                    fRes = True
+            else:
                 fRes = True
             sck.close()
         except Exception as e:
@@ -102,7 +107,7 @@ class Cvx400:
                         if int(vr['variableValue']) <= 70 and int(vr['variableValue']) > 50:
                             vr['variableValue'] = 36
                         elif int(vr['variableValue']) <= 50 and int(vr['variableValue']) > 30:
-                            vr['variableValue'] = 12
+                            vr['variableValue'] = 16
                         elif int(vr['variableValue']) <= 30 and int(vr['variableValue']) > 10:
                             vr['variableValue'] = 8
                         else:

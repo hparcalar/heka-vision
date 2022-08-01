@@ -198,6 +198,10 @@ Item{
         backend.requestCaptureImage(camImage);
     }
 
+    function refreshScreen(){
+        backend.requestShowTest();
+    }
+
     function showProductList(){
         var popup = cmpProductList.createObject(testViewFormContainer, {});
         popup.open();
@@ -286,6 +290,8 @@ Item{
         btnMasterJobCall.enabled = false;
         btnServoOn.enabled = false;
         btnStart.enabled = false;
+
+        checkSelectionsAreValid();
     }
 
     function requestLiveStats(){
@@ -1340,7 +1346,7 @@ Item{
 
                                     Button {
                                         id: btnProductCode
-                                        onClicked: showProductList()
+                                        onClicked: refreshScreen()
                                         Layout.fillWidth: true
                                         padding: 2
                                         text: ""

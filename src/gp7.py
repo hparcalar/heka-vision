@@ -140,7 +140,7 @@ class Gp7Connector:
             retData = self._socket.recv(1024)
 
         except Exception as e:
-            print(e)
+            pass
 
         self.__disconnect()
         self._busyByCommand = False
@@ -164,7 +164,7 @@ class Gp7Connector:
             retData = self._socket.recv(1024)
 
         except Exception as e:
-            print(e)
+            pass
 
         self.__disconnect()
         self._busyByCommand = False
@@ -182,7 +182,8 @@ class Gp7Connector:
             self._socket.sendall(bytearray.fromhex(cmd))
             retData = self._socket.recv(1024)
         except Exception as e:
-            print(e)
+            pass
+            # print(e)
 
         self.__disconnect()
         self._busyByCommand = False
@@ -200,7 +201,8 @@ class Gp7Connector:
             self._socket.sendall(bytearray.fromhex(cmd))
             retData = self._socket.recv(1024)
         except Exception as e:
-            print(e)
+            pass
+            # print(e)
 
         self.__disconnect()
         self._busyByCommand = False
@@ -226,7 +228,8 @@ class Gp7Connector:
             self._socket.sendall(bytearray.fromhex(cmd))
             retData = self._socket.recv(1024)
         except Exception as e:
-            print(e)
+            pass
+            # print(e)
 
         self.__disconnect()
         self._busyByCommand = False
@@ -244,7 +247,8 @@ class Gp7Connector:
             self._socket.sendall(bytearray.fromhex(cmd))
             retData = self._socket.recv(1024)
         except Exception as e:
-            print(e)
+            pass
+            # print(e)
 
         self.__disconnect()
         self._busyByCommand = False
@@ -262,7 +266,8 @@ class Gp7Connector:
             self._socket.sendall(bytearray.fromhex(cmd))
             retData = self._socket.recv(1024)
         except Exception as e:
-            print(e)
+            pass
+            # print(e)
 
         self.__disconnect()
         self._busyByCommand = False
@@ -280,7 +285,8 @@ class Gp7Connector:
             self._socket.sendall(bytearray.fromhex(cmd))
             retData = self._socket.recv(1024)
         except Exception as e:
-            print(e)
+            pass
+            # print(e)
 
         self.__disconnect()
         self._busyByCommand = False
@@ -301,7 +307,8 @@ class Gp7Connector:
             
             data = int.from_bytes([ retData[32] ], 'little', signed=False)
         except Exception as e:
-            print(e)
+            pass
+            # print(e)
 
         self.__disconnect()
         self._busyByCommand = False
@@ -362,8 +369,9 @@ class Gp7Connector:
             dataByte = int.from_bytes([ retData[32] ], 'little', signed=False)
             data = (dataByte & bitDivider)
         except Exception as e:
-            print('read error: ')
-            print(e)
+            pass
+            # print('read error: ')
+            # print(e)
 
         self.__disconnect()
         self._busyByCommand = False
@@ -390,7 +398,7 @@ class Gp7Connector:
             
             res = retData[25] == 0
         except Exception as e:
-            print(e)
+            pass
 
         self.__disconnect()
         self._busyByCommand = False

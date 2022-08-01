@@ -164,6 +164,7 @@ ApplicationWindow {
             visible: false
             anchors.fill: parent
             anchors.leftMargin:mainWindow.width * 0.5
+            anchors.rightMargin: 250
             focus: true
         }
 
