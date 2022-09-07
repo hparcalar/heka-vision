@@ -157,7 +157,8 @@ class BackendManager(QObject):
             if self.startButtonChecker:
                 self.runStartButtonListener = False
                 self.startButtonChecker.stop()
-        except:
+        except Exception as e:
+            print(e)
             pass
 
     def __listenForCommCheck(self):
@@ -448,6 +449,7 @@ class BackendManager(QObject):
     def requestCaptureImage(self, camImage: str):
         if self.dirManager:
             camImage = camImage.replace('file://', '')
+            print('REQUESTED CAPTURE IMAGE: ' + camImage)
             captureImage = self.dirManager.getCaptureImage(camImage)
             if captureImage:
                 self.getCaptureImage.emit(captureImage)
@@ -520,7 +522,6 @@ class BackendManager(QObject):
                     dirArr.append(rcp['imageDir'])
 
             self.dirManager.stopListeners()
-            sleep(0.5)
             self.dirManager.setRecipes(rcpArr)
             self.dirManager.setDirectories(dirArr)
 

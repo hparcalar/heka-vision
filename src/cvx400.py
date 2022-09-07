@@ -15,6 +15,7 @@ class Cvx400:
         try:
             if not self._proxy:
                 self._proxy = proxy_simple(self._hostIp)
+                #self._proxy.timeout = 5
         except Exception as e:
             pass
 
@@ -72,6 +73,24 @@ class Cvx400:
         return fRes
 
 
+    def requestScreenshot(self):
+        fRes = False
+
+        try:
+            sck = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sck.settimeout(5.0)
+            sck.connect((self._hostIp, self._hostPort))
+            sck.send(bytearray('BC,FTP\r', 'ascii'))
+            resp = sck.recv(1024)
+            if resp.decode().find("ER,") == -1:
+                fRes = True
+            sck.close()
+        except:
+            fRes = False
+        
+        return fRes
+
+
     def selectProgram(self, sdCardNo, programNo) -> bool:
         fRes = False
         try:
@@ -105,13 +124,23 @@ class Cvx400:
                 try:
                     if vr['variableName'] >= '$G0013':
                         if int(vr['variableValue']) <= 70 and int(vr['variableValue']) > 50:
-                            vr['variableValue'] = 36
+                            vr['variableValue'] = 65
                         elif int(vr['variableValue']) <= 50 and int(vr['variableValue']) > 30:
-                            vr['variableValue'] = 16
+                            vr['variableValue'] = 48
                         elif int(vr['variableValue']) <= 30 and int(vr['variableValue']) > 10:
-                            vr['variableValue'] = 8
+                            vr['variableValue'] = 30
                         else:
-                            vr['variableValue'] = 4
+                            vr['variableValue'] = 15
+
+                        # OLD element size calculation
+                        # if int(vr['variableValue']) <= 70 and int(vr['variableValue']) > 50:
+                        #     vr['variableValue'] = 36
+                        # elif int(vr['variableValue']) <= 50 and int(vr['variableValue']) > 30:
+                        #     vr['variableValue'] = 16
+                        # elif int(vr['variableValue']) <= 30 and int(vr['variableValue']) > 10:
+                        #     vr['variableValue'] = 8
+                        # else:
+                        #     vr['variableValue'] = 4
                             
                     sck.send(bytearray('MW,'+ vr['variableName'] +','+ str(vr['variableValue']) +'\r', 'ascii'))
                     vrChangeResult = sck.recv(1024)

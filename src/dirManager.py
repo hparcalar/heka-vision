@@ -10,6 +10,7 @@ class DirManager:
     def __init__(self, backend) -> None:
         self._backend = backend
         self._directories = []
+        self._threshDates = []
         self._recipes = []
         self._isRunning = False
         self._listeners = []
@@ -21,7 +22,7 @@ class DirManager:
 
 
     def __listenProcess(self, dir):
-        threshDate = datetime.now()
+        # threshDate = datetime.now()
 
         while self._isRunning == True:
             try:
@@ -38,7 +39,7 @@ class DirManager:
                                 histArr = self._histories[dirIndex]
 
                                 fullPath = dir + '/' + latestTestDir + '/' + latestImage
-                                if datetime.fromtimestamp(getctime(fullPath)) > threshDate and not fullPath in histArr:
+                                if datetime.fromtimestamp(getctime(fullPath)) > self._threshDates[dirIndex] and not fullPath in histArr:
                                     sleep(2)
                                     histArr.append(fullPath)
                                     if len(histArr) >= 10:
@@ -53,7 +54,9 @@ class DirManager:
                                         # print(e)
                                         pass
 
-                                    threshDate = datetime.now()
+                                    self._threshDates[dirIndex] = datetime.now()
+
+                                    #threshDate = datetime.now()
                                     self.__raiseNewImageResult(dir, fullPath, self._recipes[dirIndex])
                             
             except:
@@ -67,7 +70,8 @@ class DirManager:
         try:
             for l in self._listeners:
                 l.stop()
-        except:
+        except Exception as e:
+            print(e)
             pass
 
         # self._listeners.clear()
@@ -78,6 +82,10 @@ class DirManager:
     def setDirectories(self, dirList):
         self.stopListeners()
         self._directories = dirList
+        self._threshDates = []
+        dtNow = datetime.now()
+        for d in self._directories:
+            self._threshDates.append(dtNow)
 
 
     def setRecipes(self, recipeList):
@@ -91,6 +99,11 @@ class DirManager:
             self._histories.clear()
         except:
             pass
+
+        try:
+            self._listeners.clear()
+        except:
+            pass
         
         for d in self._directories:
             lThread = HekaThread(target=self.__listenProcess, args=(d,))
@@ -101,20 +114,40 @@ class DirManager:
 
     def getCaptureImage(self, camImage: str):
         try:
+            capturePath = '/home/heka/FtpContent/xg/capture'
             pathArr = camImage.split('/')
             camImageName = pathArr[len(pathArr) - 1]
+            print('CAM IMAGE:')
+            print(camImageName)
 
-            imageDir = camImage.replace(camImageName, '')
-            if imageDir and isdir(imageDir):
-                fnames = listdir(imageDir)
+            camImageParts = camImageName.split('_')
+            camImageTime = camImageParts[0] + '_' + camImageParts[1]
+            print('CAM IMAGE TIME:')
+            print(camImageTime)
 
-                uniqueName = camImageName[0:camImageName.index('&') + 1]
+            captureList = listdir(capturePath)
+            properCaptures = list(filter(lambda x: (camImageTime + '.bmp') < x, captureList))
 
-                foundCaptureList = list(filter(lambda x: uniqueName in x and "capture" in x, fnames))
-                if foundCaptureList and len(foundCaptureList) > 0:
-                    foundCapture = foundCaptureList[0]
-                    return imageDir + '/' + foundCapture
-        except:
+            print('PROPER CAPTURES')
+            foundCapture = sorted(properCaptures, key= lambda x: x, reverse=False)[0]
+
+            print(foundCapture)
+            
+            if foundCapture:
+                return capturePath + '/' + foundCapture
+
+            # imageDir = camImage.replace(camImageName, '')
+            # if imageDir and isdir(imageDir):
+            #     fnames = listdir(imageDir)
+
+            #     uniqueName = camImageName[0:camImageName.index('&') + 1]
+
+            #     foundCaptureList = list(filter(lambda x: uniqueName in x and "capture" in x, fnames))
+            #     if foundCaptureList and len(foundCaptureList) > 0:
+            #         foundCapture = foundCaptureList[0]
+            #         return imageDir + '/' + foundCapture
+        except Exception as e:
+            print(e)
             pass
 
         return None

@@ -766,9 +766,9 @@ class TestManager:
 
                 self.__raiseStepResult(testResult, str(activeStep['id']), detailedResults)
                 
-                if self._activeStepIndex + 1 < len(self._product['steps']):
-                    sleep(1.2) # wait for capture image store to ftp
-                # sleep(3)
+                self._camera.requestScreenshot()
+                # if self._activeStepIndex + 1 < len(self._product['steps']):
+                #     sleep(1.2) # wait for capture image store to ftp
 
                 if self._stepStatus == False:
                     self.stopTest()

@@ -11,7 +11,7 @@ class PrintManager:
             return
 
         try:
-            dev = usb.core.find(idVendor=0x1664, idProduct=0x019a)
+            dev = usb.core.find(idVendor=0x0a5f, idProduct=0x0166) #idVendor=0x1664, idProduct=0x019a
             # dev.set_configuration()
 
             # get an endpoint instance
@@ -46,6 +46,13 @@ class PrintManager:
         result = False
         try:
             dateStr = datetime.now().strftime('%d.%m.%Y %H:%M')
+
+            # pplb lang
+            # self.__ep.write('N\n')
+            # self.__ep.write('A15,15,0,1,1,1,N,"'+ str(data['employeeName']) +'"\n')
+            # self.__ep.write('A15,25,0,1,1,1,N,"'+ dateStr +'"\n')
+            # self.__ep.write('A15,35,0,1,1,1,N,"'+ str(data['shiftCode']) + ' VARDIYASI' +'"\n')
+            # self.__ep.write('P1\n')
 
             # write the data
             # new label 3,5 x 1,5 cm

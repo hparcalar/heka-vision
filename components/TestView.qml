@@ -394,10 +394,11 @@ Item{
 
         function onProductSelected(data){
             activeProduct = JSON.parse(data);
-            if (activeProduct.sections)
-                activeProduct.sections = activeProduct.sections.sort((a,b) => a.orderNo - b.orderNo);
+            requestProduct();
+            // if (activeProduct.sections)
+            //     activeProduct.sections = activeProduct.sections.sort((a,b) => a.orderNo - b.orderNo);
 
-            bindProduct();
+            //bindProduct();
             requestLiveStats();
             checkSelectionsAreValid();
         }
@@ -591,7 +592,10 @@ Item{
                     if (properSection){
                         if (!properSection.images || properSection.images == null)
                             properSection.images = [];
-                        properSection.images.push(fullImagePath);
+
+                        if (!properSection.images.some(d => d == fullImagePath))
+                            properSection.images.push(fullImagePath);
+                            
                         drawParts();
                     }
                 }

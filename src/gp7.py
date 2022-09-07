@@ -17,7 +17,7 @@ class Gp7Connector:
         try:
             if self._socket == None:
                 self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                self._socket.settimeout(1.0)
+                self._socket.settimeout(2.0)
                 self._socket.connect((self._robotIp, self._port))
             if self._connectionStatus == False:
                 self._socket.connect((self._robotIp, self._port))
