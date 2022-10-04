@@ -1,9 +1,10 @@
-from os import listdir
+from os import listdir, remove
 from os.path import isfile, join, isdir, getmtime, getctime
 
 from src.hkThread import HekaThread
 from datetime import datetime, timedelta
 from time import sleep
+import time as orgtime
 from PIL import Image
 
 class DirManager:
@@ -58,6 +59,12 @@ class DirManager:
 
                                     #threshDate = datetime.now()
                                     self.__raiseNewImageResult(dir, fullPath, self._recipes[dirIndex])
+                                elif getmtime(fullPath) < orgtime.time() - 7 * 86400:
+                                    try:
+                                        remove(fullPath)
+                                    except:
+                                        pass
+
                             
             except:
                 pass
@@ -117,21 +124,14 @@ class DirManager:
             capturePath = '/home/heka/FtpContent/xg/capture'
             pathArr = camImage.split('/')
             camImageName = pathArr[len(pathArr) - 1]
-            print('CAM IMAGE:')
-            print(camImageName)
 
             camImageParts = camImageName.split('_')
             camImageTime = camImageParts[0] + '_' + camImageParts[1]
-            print('CAM IMAGE TIME:')
-            print(camImageTime)
 
             captureList = listdir(capturePath)
             properCaptures = list(filter(lambda x: (camImageTime + '.bmp') < x, captureList))
 
-            print('PROPER CAPTURES')
             foundCapture = sorted(properCaptures, key= lambda x: x, reverse=False)[0]
-
-            print(foundCapture)
             
             if foundCapture:
                 return capturePath + '/' + foundCapture
